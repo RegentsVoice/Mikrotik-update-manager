@@ -498,7 +498,7 @@ class MikroTikManager:
                 
                 if update_info.get('update_available'):
                     update_count += 1
-                    update_icon = "🔄"
+                    update_icon = "🔥"
                     update_text = f"Требуется обновление: {update_info.get('latest_version', 'Неизвестно')}"
                 else:
                     update_icon = "✅"
@@ -507,11 +507,6 @@ class MikroTikManager:
                 report += f"{status_icon} <b>{device_name}</b>\n"
                 report += f"   📋 Версия: {current_version}\n"
                 report += f"   📊 Обновление: {update_icon} {update_text}\n"
-                
-                if version_info.get('identity'):
-                    report += f"   🏷️ Имя: {version_info['identity']}\n"
-                if version_info.get('model'):
-                    report += f"   💻 Модель: {version_info['model']}\n"
                 
                 report += "\n"
             else:
