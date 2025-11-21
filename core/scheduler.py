@@ -469,7 +469,7 @@ class TaskScheduler:
                 time.sleep(60)
 
     def print_schedule_status(self):
-        print("\n📅 Статус планировщика задач")
+        print("\n📅 Запланированные задачи")
         print("=" * 50)
         
         if not self.is_running:
