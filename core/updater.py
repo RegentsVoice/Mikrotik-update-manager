@@ -119,7 +119,6 @@ class MikroTikUpdater:
         try:
             self.logger.info(f"🚀 Начало установки обновления для {device_name}")
             
-            # Создаем бэкап перед обновлением
             self.logger.info("💾 Создание бэкапа перед обновлением...")
             backup_success, backup_name = self.backup_manager.create_backup(device_name, "before_update")
             
@@ -133,11 +132,9 @@ class MikroTikUpdater:
             
             self.logger.info(f"✅ Бэкап создан: {backup_name}")
             
-            # Скачиваем обновление
             self.logger.info("📥 Скачивание обновления...")
             output, error = self.connector.execute_command(device_name, '/system package update download')
             
-            # Проверяем ошибки скачивания
             if error and any('error' in err.lower() for err in error if err.strip()):
                 self.logger.error(f"❌ Ошибка скачивания обновления: {error}")
                 return {
@@ -146,7 +143,6 @@ class MikroTikUpdater:
                     'backup_file': backup_name
                 }
             
-            # Ждем завершения загрузки
             self.logger.info("⏳ Ожидание завершения загрузки...")
             download_complete = False
             
