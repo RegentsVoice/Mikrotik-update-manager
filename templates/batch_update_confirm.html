@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение массового обновления - MikroTik Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Подтверждение массового обновления</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-radiation me-2"></i>Критическое предупреждение!</h5>
+                    <p class="mb-0">
+                        Вы собираетесь выполнить массовое обновление <strong>{{ devices|length }} устройств</strong>.
+                    </p>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Последствия обновления:</h5>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Все выбранные устройства будут <strong>перезагружены</strong></li>
+                            <li>Сетевое соединение прервется на <strong>5-30 минут</strong> на каждом устройстве</li>
+                            <li>Все активные подключения будут разорваны</li>
+                            <li>Процесс занимает от 5 до 30 минут в зависимости от скорости интернета</li>
+                            <li>Не рекомендуется выполнять во время высокой нагрузки</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Устройства для обновления ({{ devices|length }}):</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Устройство</th>
+                                        <th>IP адрес</th>
+                                        <th>Статус</th>
+                                        <th>Текущая версия</th>
+                                        <th>Последняя проверка</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for device in devices %}
+                                    <tr>
+                                        <td><strong>{{ device.name }}</strong></td>
+                                        <td>{{ device.ip_address }}:{{ device.port }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ 'success' if device.status == 'online' else 'danger' }}">
+                                                {{ device.status }}
+                                            </span>
+                                        </td>
+                                        <td>{{ device.firmware_version or 'Неизвестно' }}</td>
+                                        <td>
+                                            {% if device.last_check %}
+                                            {{ device.last_check.strftime('%d.%m.%Y %H:%M') }}
+                                            {% else %}
+                                            <span class="text-muted">Никогда</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="POST" action="{{ url_for('batch_update') }}" id="massUpdateForm">
+                    <!-- Скрытые поля с выбранными device_ids -->
+                    {% for device_id in device_ids %}
+                    <input type="hidden" name="device_ids" value="{{ device_id }}">
+                    {% endfor %}
+                    <input type="hidden" name="confirmed" value="true">
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Настройки обновления</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="schedule" class="form-label">Запланировать обновление (опционально)</label>
+                                    <input type="datetime-local" class="form-control" id="schedule" name="schedule">
+                                    <div class="form-text">Если оставить пустым, обновление начнется сразу</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Настройки безопасности</label>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" id="createBackup" name="create_backup" checked>
+                                        <label class="form-check-label" for="createBackup">
+                                            Создать резервные копии перед обновлением
+                                        </label>
+                                        <div class="form-text small">
+                                            Для каждого устройства будет создан бэкап. Старые бэкапы будут автоматически удалены.
+                                        </div>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="skipOffline" name="skip_offline" checked>
+                                        <label class="form-check-label" for="skipOffline">
+                                            Пропускать оффлайн устройства
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Подтверждение</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="confirmCheckbox" required>
+                                <label class="form-check-label" for="confirmCheckbox">
+                                    <strong>Я понимаю последствия и подтверждаю массовое обновление</strong>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="understandReboot" required>
+                                <label class="form-check-label" for="understandReboot">
+                                    <strong>Я понимаю, что все устройства будут перезагружены</strong>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="maintenanceWindow" required>
+                                <label class="form-check-label" for="maintenanceWindow">
+                                    <strong>Я выполняю обновление в запланированное окно обслуживания</strong>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('batch_update') }}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Отмена
+                        </a>
+                        <button type="submit" class="btn btn-danger" id="submitBtn" disabled>
+                            <i class="fas fa-download me-1"></i>Подтвердить и начать обновление
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">План обновления</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3>{{ devices|length }}</h3>
+                            <p class="text-muted mb-0">Всего устройств</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-success">
+                                {% set online_count = devices|selectattr('status', 'equalto', 'online')|list|length %}
+                                {{ online_count }}
+                            </h3>
+                            <p class="text-muted mb-0">Онлайн устройств</p>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h3 class="text-danger">
+                                {% set offline_count = devices|selectattr('status', 'equalto', 'offline')|list|length %}
+                                {{ offline_count }}
+                            </h3>
+                            <p class="text-muted mb-0">Оффлайн устройств</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <p class="mb-1"><strong>Ожидаемое время выполнения:</strong> {{ (devices|length * 5)|round|int }}-{{ (devices|length * 30)|round|int }} минут</p>
+                    <p class="mb-0 text-muted small">(5-30 минут на каждое устройство)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+\endblock %}
+
+{% block scripts %}
+<script>
+// Включение/отключение кнопки отправки
+function updateSubmitButton() {
+    const confirmCheckbox = document.getElementById('confirmCheckbox');
+    const understandReboot = document.getElementById('understandReboot');
+    const maintenanceWindow = document.getElementById('maintenanceWindow');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    submitBtn.disabled = !(confirmCheckbox.checked && understandReboot.checked && maintenanceWindow.checked);
+}
+
+// Инициализация
+document.addEventListener('DOMContentLoaded', function() {
+    // Настройка чекбоксов
+    document.getElementById('confirmCheckbox').addEventListener('change', updateSubmitButton);
+    document.getElementById('understandReboot').addEventListener('change', updateSubmitButton);
+    document.getElementById('maintenanceWindow').addEventListener('change', updateSubmitButton);
+    
+    // Инициализация кнопки
+    updateSubmitButton();
+    
+    // Блокировка отправки формы с подтверждением
+    document.getElementById('massUpdateForm').addEventListener('submit', function(e) {
+        const deviceCount = document.querySelectorAll('input[name="device_ids"]').length;
+        const createBackup = document.getElementById('createBackup').checked;
+        
+        let message = `Вы уверены, что хотите обновить ${deviceCount} устройств?\n\n`;
+        message += `• Все устройства будут перезагружены\n`;
+        message += `• Сетевое соединение прервется\n`;
+        
+        if (createBackup) {
+            message += `• Будет создана резервная копия для каждого устройства\n`;
+        }
+        
+        message += `\nЭто действие нельзя отменить.`;
+        
+        if (!confirm(message)) {
+            e.preventDefault();
+        }
+    });
+    
+    // Установка минимальной даты для планирования (текущее время)
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    
+    const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+    document.getElementById('schedule').min = minDateTime;
+    
+    // Установка значения по умолчанию (через 1 час)
+    const future = new Date(now.getTime() + 60 * 60 * 1000); // +1 час
+    const futureYear = future.getFullYear();
+    const futureMonth = String(future.getMonth() + 1).padStart(2, '0');
+    const futureDay = String(future.getDate()).padStart(2, '0');
+    const futureHours = String(future.getHours()).padStart(2, '0');
+    const futureMinutes = String(future.getMinutes()).padStart(2, '0');
+    
+    const defaultDateTime = `${futureYear}-${futureMonth}-${futureDay}T${futureHours}:${futureMinutes}`;
+    document.getElementById('schedule').value = defaultDateTime;
+});
+</script>
+{% endblock %}

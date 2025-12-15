@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Всего устройств</h6>
+                        <h2 class="mb-0">{{ stats.total_devices }}</h2>
+                    </div>
+                    <i class="fas fa-server fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-white bg-success h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Онлайн устройств</h6>
+                        <h2 class="mb-0">{{ stats.online_devices }}</h2>
+                    </div>
+                    <i class="fas fa-wifi fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-white bg-warning h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Ожидают обновления</h6>
+                        <h2 class="mb-0">{{ stats.pending_updates }}</h2>
+                    </div>
+                    <i class="fas fa-sync-alt fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card text-white bg-info h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title">Активные задачи</h6>
+                        <h2 class="mb-0">{{ stats.active_tasks }}</h2>
+                    </div>
+                    <i class="fas fa-tasks fa-3x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Быстрые действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('devices') }}" class="btn btn-outline-primary btn-lg">
+                        <i class="fas fa-server me-2"></i>Все устройства
+                    </a>
+                    <a href="{{ url_for('add_device') }}" class="btn btn-outline-success btn-lg">
+                        <i class="fas fa-plus-circle me-2"></i>Добавить устройство
+                    </a>
+                    <a href="{{ url_for('tasks') }}" class="btn btn-outline-info btn-lg">
+                        <i class="fas fa-tasks me-2"></i>Планировщик задач
+                    </a>
+                    <button class="btn btn-outline-warning btn-lg" data-bs-toggle="modal" data-bs-target="#massUpdateModal">
+                        <i class="fas fa-sync-alt me-2"></i>Массовая проверка обновлений
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Последние действия</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% for log in recent_logs[:5] %}
+                    <div class="list-group-item list-group-item-action">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{{ log.action|replace('_', ' ')|title }}</h6>
+                            <small class="text-muted">{{ log.timestamp.strftime('%H:%M') }}</small>
+                        </div>
+                        <p class="mb-1">
+                            {% if log.device %}
+                            {{ log.device.name }} ({{ log.device.ip_address }})
+                            {% else %}
+                            Системное действие
+                            {% endif %}
+                        </p>
+                        {% if log.result and 'error' in log.result|lower %}
+                        <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Ошибка</small>
+                        {% elif log.result and 'success' in log.result|lower %}
+                        <small class="text-success"><i class="fas fa-check-circle me-1"></i>Успешно</small>
+                        {% endif %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-3 text-muted">
+                        <i class="fas fa-info-circle me-2"></i>Нет последних действий
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('logs') }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-history me-1"></i>Все действия
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="massUpdateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Массовая проверка обновлений</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('batch_update_check') }}">
+                <div class="modal-body">
+                    <p>Выберите устройства для массовой проверки обновлений:</p>
+                    <div class="mb-3" style="max-height: 300px; overflow-y: auto;">
+                        {% for device in all_devices %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="device_ids" value="{{ device.id }}" id="device_{{ device.id }}">
+                            <label class="form-check-label" for="device_{{ device.id }}">
+                                {{ device.name }} ({{ device.ip_address }})
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Начать проверку</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.type = 'button';
+    selectAllBtn.className = 'btn btn-sm btn-outline-secondary mb-2';
+    selectAllBtn.innerHTML = '<i class="fas fa-check-square me-1"></i>Выбрать все';
+    selectAllBtn.onclick = function() {
+        document.querySelectorAll('input[name="device_ids"]').forEach(cb => cb.checked = true);
+    };
+    
+    const modalBody = document.querySelector('#massUpdateModal .modal-body');
+    modalBody.insertBefore(selectAllBtn, modalBody.firstChild);
+});
+</script>
+{% endblock %}

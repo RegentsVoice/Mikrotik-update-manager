@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}Устройства - MikroTik Manager{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Устройства MikroTik</h2>
+    <div>
+        <a href="{{ url_for('batch_check') }}" class="btn btn-info me-2">
+            <i class="fas fa-sync-alt me-1"></i>Массовая проверка
+        </a>
+        {% if devices|selectattr('needs_update')|list|length > 0 %}
+        <a href="{{ url_for('batch_update') }}" class="btn btn-warning me-2">
+            <i class="fas fa-download me-1"></i>Массовое обновление
+        </a>
+        {% endif %}
+        <a href="{{ url_for('add_device') }}" class="btn btn-success">
+            <i class="fas fa-plus-circle me-1"></i>Добавить устройство
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Список устройств</h5>
+            <div class="text-muted">
+                {% set update_count = devices|selectattr('needs_update')|list|length %}
+                {% if update_count > 0 %}
+                <span class="badge bg-warning">{{ update_count }} требуют обновления</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>IP адрес</th>
+                        <th>Статус</th>
+                        <th>Версия</th>
+                        <th>Обновление</th>
+                        <th>Последняя проверка</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <strong>{{ device.name }}</strong>
+                            {% if device.description %}
+                            <br><small class="text-muted">{{ device.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ device.ip_address }}:{{ device.port }}</td>
+                        <td>
+                            <span class="badge bg-{{ 'success' if device.status == 'online' else 'danger' }}">
+                                {{ device.status }}
+                            </span>
+                        </td>
+                        <td>{{ device.firmware_version or 'Не проверено' }}</td>
+                        <td>
+                            {% if device.needs_update %}
+                            <span class="badge bg-warning">Требует обновления</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Актуально</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if device.last_check %}
+                            {{ device.last_check.strftime('%d.%m.%Y %H:%M') }}
+                            {% else %}
+                            <span class="text-muted">Никогда</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('get_device_system_info', device_id=device.id) }}" 
+                                   class="btn btn-outline-info" title="Информация о системе">
+                                    <i class="fas fa-info-circle"></i>
+                                </a>
+                                <a href="{{ url_for('device_backups', device_id=device.id) }}" 
+                                   class="btn btn-outline-secondary" title="Резервные копии">
+                                    <i class="fas fa-archive"></i>
+                                </a>
+                                <a href="{{ url_for('check_device_update', device_id=device.id) }}" 
+                                   class="btn btn-outline-warning" title="Проверить обновления">
+                                    <i class="fas fa-sync-alt"></i>
+                                </a>
+                                {% if device.needs_update %}
+                                <a href="{{ url_for('perform_device_update', device_id=device.id) }}" 
+                                   class="btn btn-outline-danger" title="Выполнить обновление"
+                                   onclick="return confirm('Внимание! Устройство будет перезагружено. Продолжить?')">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('edit_device', device_id=device.id) }}" 
+                                   class="btn btn-outline-primary" title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn btn-outline-danger" 
+                                        onclick="deleteDevice({{ device.id }})"
+                                        title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        {% if not devices %}
+        <div class="text-center py-5">
+            <i class="fas fa-server fa-4x text-muted mb-3"></i>
+            <h5>Устройства не найдены</h5>
+            <p class="text-muted">Добавьте свое первое устройство MikroTik</p>
+            <a href="{{ url_for('add_device') }}" class="btn btn-primary">
+                <i class="fas fa-plus-circle me-1"></i>Добавить устройство
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteDevice(deviceId) {
+    if (confirm('Удалить устройство? Это действие нельзя отменить.')) {
+        fetch(`/devices/${deviceId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Ошибка сети: ' + error);
+        });
+    }
+}
+</script>
+{% endblock %}

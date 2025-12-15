@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение обновления - MikroTik Manager{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-white">
+                <h4 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Подтверждение обновления</h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h5><i class="fas fa-radiation me-2"></i>Внимание!</h5>
+                    <p class="mb-0">
+                        Вы собираетесь выполнить обновление прошивки на устройстве <strong>{{ device.name }}</strong> ({{ device.ip_address }}).
+                    </p>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6>Последствия обновления:</h6>
+                        <ul>
+                            <li>Устройство будет перезагружено</li>
+                            <li>Сетевое соединение прервется на несколько минут</li>
+                            <li>Все активные подключения будут разорваны</li>
+                            <li>Процесс занимает 3-10 минут</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h6>Информация об устройстве:</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <th>Устройство:</th>
+                                <td>{{ device.name }}</td>
+                            </tr>
+                            <tr>
+                                <th>IP адрес:</th>
+                                <td>{{ device.ip_address }}:{{ device.port }}</td>
+                            </tr>
+                            <tr>
+                                <th>Текущая версия:</th>
+                                <td>{{ device.firmware_version or 'Неизвестно' }}</td>
+                            </tr>
+                            <tr>
+                                <th>Последняя проверка:</th>
+                                <td>{{ device.last_check.strftime('%d.%m.%Y %H:%M') if device.last_check else 'Никогда' }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">Настройки обновления</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="createBackup" name="create_backup" checked>
+                            <label class="form-check-label" for="createBackup">
+                                <strong>Создать резервную копию конфигурации перед обновлением</strong>
+                            </label>
+                            <div class="form-text">
+                                Рекомендуется включить. Система создаст бэкап на устройстве и автоматически удалит старые бэкапы, оставив 5 последних.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('devices') }}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i>Отмена
+                    </a>
+                    <div>
+                        <a href="{{ url_for('device_backups', device_id=device.id) }}" class="btn btn-info me-2">
+                            <i class="fas fa-archive me-1"></i>Управление бэкапами
+                        </a>
+                        <button type="button" class="btn btn-danger" id="updateBtn" data-device-id="{{ device.id }}">
+                            <i class="fas fa-sync-alt me-1"></i>Подтвердить и начать обновление
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const updateBtn = document.getElementById('updateBtn');
+    const backupCheckbox = document.getElementById('createBackup');
+    
+    updateBtn.addEventListener('click', function() {
+        const deviceId = this.getAttribute('data-device-id');
+        const createBackup = backupCheckbox.checked ? 'true' : 'false';
+        
+        if (confirm('Вы уверены, что хотите выполнить обновление? Устройство будет перезагружено.')) {
+            // Перенаправляем на страницу обновления с параметрами
+            window.location.href = `/devices/${deviceId}/perform-update?confirmed=1&backup=${createBackup}`;
+        }
+    });
+    
+    // Также можно сделать через Enter
+    document.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter' && !e.target.matches('input[type="checkbox"]')) {
+            updateBtn.click();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,223 @@
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h5>Детали задачи: {{ task.name }}</h5>
+            <hr>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Основная информация</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th style="width: 40%">ID задачи:</th>
+                            <td>{{ task.id }}</td>
+                        </tr>
+                        <tr>
+                            <th>Название:</th>
+                            <td>{{ task.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>Тип задачи:</th>
+                            <td>
+                                <span class="badge bg-{{ 
+                                    'info' if task.task_type == 'check_update' 
+                                    else 'warning' if task.task_type == 'perform_update' 
+                                    else 'secondary' 
+                                }}">
+                                    {{ task.task_type }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Статус:</th>
+                            <td>
+                                {% if task.is_active %}
+                                <span class="badge bg-success">Активна</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Неактивна</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Создана:</th>
+                            <td>{{ task.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <th>Создатель:</th>
+                            <td>
+                                {% if task.created_by_user %}
+                                {{ task.created_by_user.username }}
+                                {% else %}
+                                <span class="text-muted">Неизвестно</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            {% if task.command %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Команда</h6>
+                </div>
+                <div class="card-body">
+                    <pre class="mb-0 bg-light p-3 rounded"><code>{{ task.command }}</code></pre>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">Расписание</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th style="width: 40%">Cron выражение:</th>
+                            <td><code>{{ task.cron_expression }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Последний запуск:</th>
+                            <td>
+                                {% if task.last_run %}
+                                {{ task.last_run.strftime('%d.%m.%Y %H:%M') }}
+                                {% else %}
+                                <span class="text-muted">Никогда</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Устройства ({{ devices|length }})</h6>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    {% if devices %}
+                        {% for device in devices %}
+                        <div class="card mb-2">
+                            <div class="card-body py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ device.name }}</strong>
+                                        <small class="text-muted d-block">{{ device.ip_address }}:{{ device.port }}</small>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-{{ 'success' if device.status == 'online' else 'danger' }}">
+                                            {{ device.status }}
+                                        </span>
+                                    </div>
+                                </div>
+                                {% if device.description %}
+                                <small class="text-muted">{{ device.description }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-exclamation-circle fa-3x mb-3"></i>
+                            <p>Нет назначенных устройств</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if task.last_result %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6 class="mb-0">Результат последнего выполнения</h6>
+                </div>
+                <div class="card-body">
+                    {% if task.last_result is string and (task.last_result.startswith('[') or task.last_result.startswith('{')) %}
+                        <pre class="mb-0 bg-light p-3 rounded"><code>{{ task.last_result }}</code></pre>
+                    {% else %}
+                        <div class="p-3 bg-light rounded">{{ task.last_result }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-primary" onclick="runTaskNow({{ task.id }})">
+                    <i class="fas fa-play me-1"></i>Запустить сейчас
+                </button>
+                <div>
+                    <button type="button" class="btn btn-outline-{{ 'warning' if task.is_active else 'success' }}" 
+                            onclick="toggleTaskStatus({{ task.id }}, {{ task.is_active|lower }})">
+                        <i class="fas fa-toggle-{{ 'on' if task.is_active else 'off' }} me-1"></i>
+                        {{ 'Деактивировать' if task.is_active else 'Активировать' }}
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>Закрыть
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function runTaskNow(taskId) {
+    if (confirm('Запустить задачу сейчас?')) {
+        fetch(`/tasks/${taskId}/run-now`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Задача запущена');
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Ошибка сети: ' + error);
+        });
+    }
+}
+
+function toggleTaskStatus(taskId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    if (confirm(`${isActive ? 'Деактивировать' : 'Активировать'} задачу?`)) {
+        fetch(`/tasks/${taskId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Ошибка: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Ошибка сети: ' + error);
+        });
+    }
+}
+</script>
