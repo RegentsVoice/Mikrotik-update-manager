@@ -1,0 +1,969 @@
+{% extends "base.html" %}
+
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn-unified btn-outline">
+            <i class="fas fa-home"></i> На главную
+        </a>
+        <a href="{{ url_for('batch_update') }}" class="btn-unified btn-primary">
+            <i class="fas fa-redo"></i> Новое обновление
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="batch-results-container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon total">
+                <i class="fas fa-server"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ results|length }}</h3>
+                <p>Всего устройств</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ success_count }}</h3>
+                <p>Успешно</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon error">
+                <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ error_count }}</h3>
+                <p>С ошибками</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon time">
+                <i class="fas fa-clock"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ now.strftime('%H:%M') }}</h3>
+                <p>Время завершения</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="summary-card card mb-4">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-info-circle"></i> Сводка операции
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="operation-summary">
+                <div class="summary-item">
+                    <div class="summary-label">Дата и время:</div>
+                    <div class="summary-value">{{ now.strftime('%d.%m.%Y %H:%M:%S') }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Резервное копирование:</div>
+                    <div class="summary-value">
+                        <span class="badge badge-{{ 'success' if with_backup else 'secondary' }}">
+                            {{ 'Выполнено' if with_backup else 'Не выполнялось' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Инициировал:</div>
+                    <div class="summary-value">{{ current_user.username }}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">Результат:</div>
+                    <div class="summary-value">
+                        {% if error_count == 0 %}
+                        <span class="badge badge-success">Все обновления успешны</span>
+                        {% elif success_count == 0 %}
+                        <span class="badge badge-danger">Все обновления завершились ошибкой</span>
+                        {% else %}
+                        <span class="badge badge-warning">Частично успешно</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-between align-center">
+                <h5 class="card-title">
+                    <i class="fas fa-list"></i> Результаты по устройствам
+                </h5>
+                <div class="filter-tabs">
+                    <button class="btn-unified btn-outline btn-sm active" onclick="filterResults('all')">
+                        Все ({{ results|length }})
+                    </button>
+                    <button class="btn-unified btn-outline btn-sm" onclick="filterResults('success')">
+                        Успешно ({{ success_count }})
+                    </button>
+                    <button class="btn-unified btn-outline btn-sm" onclick="filterResults('error')">
+                        Ошибки ({{ error_count }})
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if results %}
+            <div class="results-list">
+                {% for item in results %}
+                <div class="result-item" data-status="{{ 'success' if item.result.status == 'success' else 'error' }}">
+                    <div class="result-header">
+                        <div class="device-info">
+                            <div class="device-name">
+                                <i class="fas fa-server"></i>
+                                <strong>{{ item.device.name }}</strong>
+                            </div>
+                            <div class="device-details">
+                                <span class="device-ip">{{ item.device.ip_address }}:{{ item.device.port }}</span>
+                                <span class="device-status {{ item.device.status }}">
+                                    <i class="fas fa-circle"></i>
+                                    {{ 'Онлайн' if item.device.status == 'online' else 'Офлайн' if item.device.status == 'offline' else 'Неизвестно' }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="result-status">
+                            {% if item.result.status == 'success' %}
+                            <span class="status-badge success">
+                                <i class="fas fa-check-circle"></i> Успешно
+                            </span>
+                            {% else %}
+                            <span class="status-badge error">
+                                <i class="fas fa-times-circle"></i> Ошибка
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="result-body">
+                        {% if item.result.status == 'success' %}
+                        <div class="success-message">
+                            <i class="fas fa-check"></i>
+                            <span>Обновление выполнено успешно. Устройство будет перезагружено.</span>
+                        </div>
+                        {% if item.result.message %}
+                        <div class="result-message">
+                            <strong>Сообщение:</strong> {{ item.result.message }}
+                        </div>
+                        {% endif %}
+                        {% else %}
+                        <div class="error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Ошибка при выполнении обновления</span>
+                        </div>
+                        <div class="error-details">
+                            <strong>Причина:</strong> {{ item.result.message or 'Неизвестная ошибка' }}
+                        </div>
+                        {% endif %}
+                        
+                        {% if item.result.raw_output %}
+                        <div class="raw-output">
+                            <button class="btn-unified btn-outline btn-sm" onclick="toggleOutput({{ loop.index }})">
+                                <i class="fas fa-eye"></i> Показать вывод
+                            </button>
+                            <div class="output-content" id="output-{{ loop.index }}" style="display: none;">
+                                <pre><code>{{ item.result.raw_output|truncate(500) }}</code></pre>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="result-footer">
+                        <div class="timestamp">
+                            <i class="fas fa-clock"></i>
+                            {{ now.strftime('%H:%M:%S') }}
+                        </div>
+                        <div class="actions">
+                            <a href="{{ url_for('get_device_system_info', device_id=item.device.id) }}" 
+                               class="btn-unified btn-info btn-sm">
+                                <i class="fas fa-info-circle"></i> Информация
+                            </a>
+                            <a href="{{ url_for('test_device_connection', device_id=item.device.id) }}" 
+                               class="btn-unified btn-outline btn-sm">
+                                <i class="fas fa-network-wired"></i> Тест подключения
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-results">
+                <div class="empty-icon">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                </div>
+                <h6>Нет результатов</h6>
+                <p>Не удалось получить результаты выполнения операции</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if error_count > 0 %}
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-lightbulb"></i> Рекомендации
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="recommendations">
+                <div class="recommendation">
+                    <i class="fas fa-redo"></i>
+                    <div>
+                        <strong>Повторить для устройств с ошибками</strong>
+                        <p>Попробуйте выполнить обновление только для устройств, завершившихся с ошибкой</p>
+                    </div>
+                </div>
+                <div class="recommendation">
+                    <i class="fas fa-plug"></i>
+                    <div>
+                        <strong>Проверить подключение</strong>
+                        <p>Убедитесь, что устройства доступны по сети и корректно настроены учетные данные</p>
+                    </div>
+                </div>
+                <div class="recommendation">
+                    <i class="fas fa-history"></i>
+                    <div>
+                        <strong>Проверить логи</strong>
+                        <p>Изучите детали ошибок в разделе "Логи" для понимания причин сбоев</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-3">
+                <a href="{{ url_for('logs') }}" class="btn-unified btn-outline">
+                    <i class="fas fa-history"></i> Перейти к логам
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.batch-results-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Статистика */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.total { background: linear-gradient(135deg, #7209b7, #560bad); }
+.stat-icon.success { background: linear-gradient(135deg, #4cc9f0, #4895ef); }
+.stat-icon.error { background: linear-gradient(135deg, #f8961e, #f3722c); }
+.stat-icon.time { background: linear-gradient(135deg, #4361ee, #3a56d4); }
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 2rem;
+    color: var(--dark-color);
+}
+
+.stat-info p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* Сводка операции */
+.summary-card .card-body {
+    padding: 0;
+}
+
+.operation-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0;
+}
+
+.summary-item {
+    padding: 20px;
+    border-bottom: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+}
+
+.summary-item:nth-child(odd) {
+    background: var(--light-gray);
+}
+
+.summary-item:nth-child(even) {
+    background: white;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: var(--dark-gray);
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.summary-value {
+    font-weight: 500;
+    color: var(--dark-color);
+    font-size: 1rem;
+}
+
+/* Фильтры */
+.filter-tabs {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-tabs .btn-unified.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Список результатов */
+.results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.result-item {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    transition: var(--transition);
+}
+
+.result-item:hover {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+
+.result-item[data-status="success"] {
+    border-left: 4px solid #4cc9f0;
+}
+
+.result-item[data-status="error"] {
+    border-left: 4px solid #f8961e;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.device-info {
+    flex: 1;
+    min-width: 300px;
+}
+
+.device-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.device-name i {
+    color: var(--primary-color);
+}
+
+.device-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+.device-ip {
+    font-family: monospace;
+}
+
+.device-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.device-status i {
+    font-size: 0.7rem;
+}
+
+.device-status.online {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.device-status.offline {
+    background: rgba(173, 181, 189, 0.15);
+    color: #adb5bd;
+}
+
+.result-status {
+    flex-shrink: 0;
+}
+
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.status-badge.success {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.status-badge.success i {
+    color: #4cc9f0;
+}
+
+.status-badge.error {
+    background: rgba(248, 150, 30, 0.15);
+    color: #f8961e;
+}
+
+.status-badge.error i {
+    color: #f8961e;
+}
+
+/* Тело результата */
+.result-body {
+    margin-bottom: 20px;
+}
+
+.success-message, .error-message {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 12px 15px;
+    border-radius: var(--border-radius-sm);
+}
+
+.success-message {
+    background: rgba(76, 201, 240, 0.1);
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    color: #4cc9f0;
+}
+
+.success-message i {
+    color: #4cc9f0;
+    margin-top: 2px;
+}
+
+.error-message {
+    background: rgba(248, 150, 30, 0.1);
+    border: 1px solid rgba(248, 150, 30, 0.2);
+    color: #f8961e;
+}
+
+.error-message i {
+    color: #f8961e;
+    margin-top: 2px;
+}
+
+.result-message, .error-details {
+    padding: 10px 15px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius-sm);
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.raw-output {
+    margin-top: 15px;
+}
+
+.output-content {
+    margin-top: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.output-content pre {
+    margin: 0;
+    padding: 15px;
+    background: #f8f9fa;
+    max-height: 200px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+}
+
+/* Футер результата */
+.result-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.timestamp {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+.timestamp i {
+    color: var(--primary-color);
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.actions .btn-unified {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* Рекомендации */
+.recommendations {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.recommendation {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 20px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.recommendation i {
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    margin-top: 2px;
+}
+
+.recommendation div {
+    flex: 1;
+}
+
+.recommendation strong {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--dark-color);
+    font-size: 1rem;
+}
+
+.recommendation p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* Пустые результаты */
+.empty-results {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--gray);
+}
+
+.empty-icon {
+    margin-bottom: 20px;
+    opacity: 0.3;
+}
+
+.empty-results h6 {
+    margin-bottom: 10px;
+    color: var(--dark-gray);
+    font-size: 1.2rem;
+}
+
+.empty-results p {
+    margin: 0;
+    max-width: 400px;
+    margin: 0 auto;
+    line-height: 1.5;
+}
+
+/* Бейджи */
+.badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.badge-success {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.badge-warning {
+    background: rgba(248, 150, 30, 0.15);
+    color: #f8961e;
+}
+
+.badge-danger {
+    background: rgba(247, 37, 133, 0.15);
+    color: #f72585;
+}
+
+.badge-secondary {
+    background: rgba(173, 181, 189, 0.15);
+    color: #adb5bd;
+}
+
+/* Адаптивность */
+@media (max-width: 992px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .operation-summary {
+        grid-template-columns: 1fr;
+    }
+    
+    .summary-item {
+        border-right: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .page-actions {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .page-actions .btn-unified {
+        width: 100%;
+    }
+    
+    .filter-tabs {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .filter-tabs .btn-unified {
+        width: 100%;
+    }
+    
+    .result-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .device-info {
+        min-width: auto;
+    }
+    
+    .result-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .actions {
+        width: 100%;
+        flex-direction: column;
+    }
+    
+    .actions .btn-unified {
+        width: 100%;
+    }
+    
+    .recommendation {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 1.75rem;
+    }
+    
+    .stat-info h3 {
+        font-size: 1.75rem;
+    }
+    
+    .device-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+function filterResults(status) {
+    const items = document.querySelectorAll('.result-item');
+    const filterButtons = document.querySelectorAll('.filter-tabs .btn-unified');
+    
+
+    filterButtons.forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.includes(status.charAt(0).toUpperCase() + status.slice(1))) {
+            btn.classList.add('active');
+        }
+    });
+    
+
+    items.forEach(item => {
+        if (status === 'all' || item.getAttribute('data-status') === status) {
+            item.style.display = 'block';
+            setTimeout(() => {
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 10);
+        } else {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                item.style.display = 'none';
+            }, 300);
+        }
+    });
+}
+
+
+function toggleOutput(index) {
+    const output = document.getElementById(`output-${index}`);
+    const button = event.currentTarget;
+    
+    if (output.style.display === 'none') {
+        output.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash"></i> Скрыть вывод';
+        setTimeout(() => {
+            output.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        output.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye"></i> Показать вывод';
+    }
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const statCards = document.querySelectorAll('.stat-card');
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in-up');
+    });
+    
+    const resultItems = document.querySelectorAll('.result-item');
+    resultItems.forEach((item, index) => {
+        item.style.animationDelay = `${0.5 + index * 0.05}s`;
+        item.classList.add('fade-in-up');
+    });
+    
+    const recommendations = document.querySelectorAll('.recommendation');
+    recommendations.forEach((rec, index) => {
+        rec.style.animationDelay = `${1 + index * 0.1}s`;
+        rec.classList.add('fade-in-up');
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+        
+        .result-item {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    if ({{ error_count }} > 0) {
+        setTimeout(() => {
+            filterResults('error');
+        }, 1000);
+    }
+});
+
+function exportResults(format) {
+    const data = {
+        timestamp: new Date().toISOString(),
+        operation: 'batch_update',
+        with_backup: {{ with_backup|lower }},
+        total: {{ results|length }},
+        success: {{ success_count }},
+        errors: {{ error_count }},
+        results: []
+    };
+    
+    document.querySelectorAll('.result-item').forEach(item => {
+        const deviceName = item.querySelector('.device-name strong').textContent;
+        const deviceIp = item.querySelector('.device-ip').textContent;
+        const status = item.getAttribute('data-status');
+        const message = item.querySelector('.result-message, .error-details')?.textContent || '';
+        
+        data.results.push({
+            device: deviceName,
+            ip: deviceIp,
+            status: status,
+            message: message.trim()
+        });
+    });
+    
+    if (format === 'json') {
+        const jsonStr = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch_update_${new Date().getTime()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } else {
+        let csv = 'Устройство,IP,Статус,Сообщение\n';
+        data.results.forEach(item => {
+            csv += `"${item.device}","${item.ip}","${item.status}","${item.message.replace(/"/g, '""')}"\n`;
+        });
+        
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `batch_update_${new Date().getTime()}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+    
+    showNotification(`Результаты экспортированы в ${format.toUpperCase()}`, 'success');
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        document.querySelector('.main-content').insertBefore(newContainer, document.querySelector('.page-content'));
+    }
+    
+    document.querySelector('.flash-container').appendChild(notification);
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    }
+}
+</script>
+{% endblock %}

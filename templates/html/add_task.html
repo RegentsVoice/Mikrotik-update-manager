@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+
+{% block title %}Создание задачи - MikroTik Manager{% endblock %}
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('tasks') }}" class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="task-form-container">
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-cogs"></i> Настройки задачи
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_task') }}" class="task-form">
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-info-circle"></i> Основная информация
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="name" class="form-label">
+                                <i class="fas fa-tag"></i> Название задачи *
+                            </label>
+                            <input type="text" class="form-control" id="name" name="name" 
+                                   required placeholder="Например: Ежедневная проверка обновлений">
+                            <div class="form-hint">Укажите понятное название для задачи</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="task_type" class="form-label">
+                                <i class="fas fa-tasks"></i> Тип задачи *
+                            </label>
+                            <select class="form-control" id="task_type" name="task_type" required>
+                                <option value="">Выберите тип задачи</option>
+                                <option value="check_update">Проверка обновлений</option>
+                                <option value="perform_update">Выполнение обновления</option>
+                                <option value="custom_command">Пользовательская команда</option>
+                            </select>
+                            <div class="form-hint">Выберите тип выполняемой операции</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section" id="command-section" style="display: none;">
+                    <h6 class="section-title">
+                        <i class="fas fa-terminal"></i> Пользовательская команда
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="command" class="form-label">
+                                <i class="fas fa-code"></i> Команда RouterOS
+                            </label>
+                            <textarea class="form-control" id="command" name="command" 
+                                      rows="3" placeholder="/system resource print"></textarea>
+                            <div class="form-hint">Введите команду, которая будет выполнена на устройствах</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-calendar-alt"></i> Расписание выполнения
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cron_expression" class="form-label">
+                                <i class="fas fa-clock"></i> Cron-выражение
+                            </label>
+                            <input type="text" class="form-control" id="cron_expression" name="cron_expression" 
+                                   placeholder="0 0 * * * (ежедневно в полночь)">
+                            <div class="form-hint">
+                                <strong>Примеры:</strong><br>
+                                • 0 0 * * * — ежедневно в полночь<br>
+                                • 0 */2 * * * — каждые 2 часа<br>
+                                • 0 8 * * 1 — каждую неделю в понедельник в 8:00<br>
+                                • 0 0 1 * * — ежемесячно 1 числа
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="is_active" class="form-label">
+                                <i class="fas fa-toggle-on"></i> Статус задачи
+                            </label>
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" value="1" checked>
+                                <label class="form-check-label" for="is_active">
+                                    Активная задача
+                                </label>
+                            </div>
+                            <div class="form-hint">Активные задачи выполняются по расписанию</div>
+                        </div>
+                    </div>
+                    <div class="preset-schedules">
+                        <h6 class="section-subtitle">Быстрый выбор:</h6>
+                        <div class="preset-buttons">
+                            <button type="button" class="btn-unified btn-outline btn-sm" onclick="setCron('0 0 * * *')">
+                                <i class="fas fa-sun"></i> Ежедневно
+                            </button>
+                            <button type="button" class="btn-unified btn-outline btn-sm" onclick="setCron('0 */6 * * *')">
+                                <i class="fas fa-clock"></i> Каждые 6 часов
+                            </button>
+                            <button type="button" class="btn-unified btn-outline btn-sm" onclick="setCron('0 0 * * 1')">
+                                <i class="fas fa-calendar-week"></i> Еженедельно
+                            </button>
+                            <button type="button" class="btn-unified btn-outline btn-sm" onclick="setCron('0 0 1 * *')">
+                                <i class="fas fa-calendar-alt"></i> Ежемесячно
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-server"></i> Выбор устройств *
+                    </h6>
+                    
+                    {% if devices %}
+                    <div class="devices-selection">
+                        <div class="selection-header">
+                            <div class="form-check">
+                                <input type="checkbox" class="form-check-input" id="select_all">
+                                <label class="form-check-label" for="select_all">
+                                    Выбрать все устройства
+                                </label>
+                            </div>
+                            <span class="selected-count">Выбрано: <strong>0</strong> устройств</span>
+                        </div>
+                        
+                        <div class="devices-grid">
+                            {% for device in devices %}
+                            <div class="device-checkbox">
+                                <input type="checkbox" class="form-check-input device-check" 
+                                       id="device_{{ device.id }}" name="device_ids" value="{{ device.id }}">
+                                <label class="form-check-label" for="device_{{ device.id }}">
+                                    <div class="device-info">
+                                        <div class="device-name">{{ device.name }}</div>
+                                        <div class="device-details">
+                                            <span class="device-ip">{{ device.ip_address }}</span>
+                                            <span class="device-status {{ device.status }}">
+                                                <i class="fas fa-circle"></i>
+                                                {{ 'Онлайн' if device.status == 'online' else 'Офлайн' if device.status == 'offline' else 'Неизвестно' }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-devices">
+                        <i class="fas fa-server fa-2x"></i>
+                        <p>Нет доступных устройств</p>
+                        <a href="{{ url_for('add_device') }}" class="btn-unified btn-primary">
+                             Добавить устройство
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-unified btn-primary">
+                        <i class="fas fa-save"></i> Создать задачу
+                    </button>
+                    <a href="{{ url_for('tasks') }}" class="btn-unified btn-outline">
+                        <i class="fas fa-times"></i> Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .task-form-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .task-form {
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+    }
+    
+    .form-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--light-gray);
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .section-subtitle {
+        font-size: 0.95rem;
+        color: var(--dark-gray);
+        margin-bottom: 15px;
+        font-weight: 500;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+    }
+    
+    .form-label i {
+        color: var(--primary-color);
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-sm);
+        font-family: var(--font-family);
+        font-size: 14px;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical;
+        font-family: 'Courier New', monospace;
+        font-size: 13px;
+    }
+    
+    select.form-control {
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 0.75rem center;
+        background-size: 16px 12px;
+        padding-right: 2.5rem;
+    }
+    
+    .form-hint {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-top: 5px;
+        line-height: 1.4;
+    }
+    
+    .form-check {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .form-check-input {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+    
+    .form-check-label {
+        cursor: pointer;
+        font-weight: 500;
+        color: var(--dark-gray);
+    }
+    
+    /* Предустановленные расписания */
+    .preset-schedules {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .preset-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    
+    /* Выбор устройств */
+    .devices-selection {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+    
+    .selection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 15px;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .selected-count {
+        font-size: 0.9rem;
+        color: var(--dark-gray);
+    }
+    
+    .selected-count strong {
+        color: var(--primary-color);
+    }
+    
+    .devices-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 15px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    
+    .device-checkbox {
+        background: var(--light-gray);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 15px;
+        transition: var(--transition);
+    }
+    
+    .device-checkbox:hover {
+        background: #e2e6ea;
+        transform: translateY(-2px);
+    }
+    
+    .device-checkbox .form-check {
+        margin: 0;
+    }
+    
+    .device-info {
+        margin-left: 25px;
+    }
+    
+    .device-name {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 5px;
+    }
+    
+    .device-details {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-size: 0.85rem;
+    }
+    
+    .device-ip {
+        color: var(--gray);
+    }
+    
+    .device-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+    }
+    
+    .device-status i {
+        font-size: 0.6rem;
+    }
+    
+    .device-status.online {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    .device-status.online i {
+        color: #4cc9f0;
+    }
+    
+    .device-status.offline {
+        background: rgba(247, 37, 133, 0.15);
+        color: #f72585;
+    }
+    
+    .device-status.offline i {
+        color: #f72585;
+    }
+    
+    .device-status.unknown {
+        background: rgba(173, 181, 189, 0.15);
+        color: #adb5bd;
+    }
+    
+    .empty-devices {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--gray);
+    }
+    
+    .empty-devices i {
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    .empty-devices p {
+        margin-bottom: 20px;
+    }
+    
+    /* Кнопки отправки */
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        padding-top: 20px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .form-actions .btn-unified {
+        min-width: 180px;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 768px) {
+        .form-section {
+            padding: 20px 15px;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+        
+        .devices-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .selection-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .preset-buttons {
+            flex-direction: column;
+        }
+        
+        .preset-buttons .btn-unified {
+            width: 100%;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .form-actions .btn-unified {
+            width: 100%;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .device-details {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        
+        .form-section {
+            padding: 15px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const taskTypeSelect = document.getElementById('task_type');
+    const commandSection = document.getElementById('command-section');
+    
+    function toggleCommandSection() {
+        if (taskTypeSelect.value === 'custom_command') {
+            commandSection.style.display = 'block';
+            document.getElementById('command').required = true;
+        } else {
+            commandSection.style.display = 'none';
+            document.getElementById('command').required = false;
+        }
+    }
+    
+    taskTypeSelect.addEventListener('change', toggleCommandSection);
+    
+    toggleCommandSection();
+    
+    window.setCron = function(cronExpression) {
+        document.getElementById('cron_expression').value = cronExpression;
+        
+        const notification = document.createElement('div');
+        notification.className = 'flash-message flash-success';
+        notification.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            Расписание установлено: ${getCronDescription(cronExpression)}
+            <button class="flash-close">&times;</button>
+        `;
+        
+        const container = document.querySelector('.flash-container') || 
+                         document.querySelector('.main-content').insertBefore(
+                             document.createElement('div'), 
+                             document.querySelector('.page-content')
+                         );
+        
+        container.className = 'flash-container';
+        container.appendChild(notification);
+        
+        notification.querySelector('.flash-close').addEventListener('click', function() {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        });
+        
+        setTimeout(() => {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    };
+    
+    function getCronDescription(cron) {
+        const descriptions = {
+            '0 0 * * *': 'Ежедневно в полночь',
+            '0 */6 * * *': 'Каждые 6 часов',
+            '0 0 * * 1': 'Еженедельно в понедельник',
+            '0 0 1 * *': 'Ежемесячно 1 числа',
+            '0 */2 * * *': 'Каждые 2 часа',
+            '0 8 * * *': 'Ежедневно в 8:00',
+            '0 12 * * *': 'Ежедневно в 12:00',
+            '0 18 * * *': 'Ежедневно в 18:00',
+            '0 0 * * 0': 'Еженедельно в воскресенье',
+            '0 0 15 * *': 'Ежемесячно 15 числа'
+        };
+        
+        return descriptions[cron] || cron;
+    }
+    
+    const selectAllCheckbox = document.getElementById('select_all');
+    const deviceCheckboxes = document.querySelectorAll('.device-check');
+    const selectedCount = document.querySelector('.selected-count strong');
+    
+    function updateSelectedCount() {
+        const checkedCount = Array.from(deviceCheckboxes).filter(cb => cb.checked).length;
+        selectedCount.textContent = checkedCount;
+        
+        selectAllCheckbox.checked = checkedCount === deviceCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < deviceCheckboxes.length;
+    }
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        const isChecked = this.checked;
+        deviceCheckboxes.forEach(cb => {
+            cb.checked = isChecked;
+        });
+        updateSelectedCount();
+    });
+    
+    deviceCheckboxes.forEach(cb => {
+        cb.addEventListener('change', updateSelectedCount);
+    });
+    
+    updateSelectedCount();
+    
+    const form = document.querySelector('.task-form');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        let errorMessage = '';
+        
+        const name = document.getElementById('name').value.trim();
+        if (!name) {
+            isValid = false;
+            errorMessage = 'Введите название задачи';
+        }
+        
+        const taskType = document.getElementById('task_type').value;
+        if (!taskType) {
+            isValid = false;
+            errorMessage = 'Выберите тип задачи';
+        }
+        
+        if (taskType === 'custom_command') {
+            const command = document.getElementById('command').value.trim();
+            if (!command) {
+                isValid = false;
+                errorMessage = 'Введите команду для выполнения';
+            }
+        }
+        
+        const selectedDevices = Array.from(deviceCheckboxes).filter(cb => cb.checked);
+        if (selectedDevices.length === 0) {
+            isValid = false;
+            errorMessage = 'Выберите хотя бы одно устройство';
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert(`Ошибка: ${errorMessage}`);
+            return false;
+        }
+        
+        const submitBtn = form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Создание...';
+        submitBtn.disabled = true;
+        
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+    
+    const cronInput = document.getElementById('cron_expression');
+    if (cronInput) {
+        cronInput.addEventListener('focus', function() {
+            const hint = document.createElement('div');
+            hint.className = 'cron-hint';
+            hint.style.cssText = `
+                position: absolute;
+                background: white;
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius);
+                padding: 15px;
+                box-shadow: var(--shadow-lg);
+                z-index: 1000;
+                max-width: 400px;
+                font-size: 0.85rem;
+                line-height: 1.5;
+                color: var(--dark-gray);
+            `;
+            
+            hint.innerHTML = `
+                <strong>Формат cron:</strong> <code>минута час день месяц день_недели</code><br><br>
+                <strong>Примеры:</strong><br>
+                • <code>0 0 * * *</code> — ежедневно в полночь<br>
+                • <code>0 */6 * * *</code> — каждые 6 часов<br>
+                • <code>0 8 * * 1</code> — по понедельникам в 8:00<br>
+                • <code>0 0 1 * *</code> — 1 числа каждого месяца<br>
+                • <code>*/15 * * * *</code> — каждые 15 минут
+            `;
+            
+            const rect = cronInput.getBoundingClientRect();
+            hint.style.top = (rect.bottom + 10) + 'px';
+            hint.style.left = rect.left + 'px';
+            
+            document.body.appendChild(hint);
+            
+            cronInput.addEventListener('blur', function removeHint() {
+                if (hint.parentNode) {
+                    hint.parentNode.removeChild(hint);
+                }
+                cronInput.removeEventListener('blur', removeHint);
+            }, { once: true });
+        });
+    }
+});
+</script>
+{% endblock %}

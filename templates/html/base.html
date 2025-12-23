@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}MikroTik Manager{% endblock %}</title>
+
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 640 512%22><path fill=%22%234361ee%22 d=%22M192 384h192c53 0 96-43 96-96h32c70.6 0 128-57.4 128-128S582.6 32 512 32H120c-13.3 0-24 10.7-24 24v232c0 53 43 96 96 96zM512 96c35.3 0 64 28.7 64 64s-28.7 64-64 64h-32V96h32zm47.7 384H48.3c-47.6 0-61-64-36-64h583.3c25 0 11.8 64-35.9 64z%22/></svg>">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+document.addEventListener('DOMContentLoaded', function() {
+
+    document.querySelectorAll('.dropdown-toggle').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            const dropdown = this.closest('.nav-dropdown');
+            const menu = dropdown.querySelector('.dropdown-menu');
+
+            document.querySelectorAll('.dropdown-menu.show').forEach(otherMenu => {
+                if (otherMenu !== menu) {
+                    otherMenu.classList.remove('show');
+                    otherMenu.closest('.nav-dropdown')
+                             .querySelector('.dropdown-toggle')
+                             .classList.remove('active');
+                }
+            });
+
+            menu.classList.toggle('show');
+            this.classList.toggle('active');
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.nav-dropdown')) {
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                menu.classList.remove('show');
+                menu.closest('.nav-dropdown')
+                     .querySelector('.dropdown-toggle')
+                     .classList.remove('active');
+            });
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.dropdown-menu.show').forEach(menu => {
+                menu.classList.remove('show');
+                menu.closest('.nav-dropdown')
+                     .querySelector('.dropdown-toggle')
+                     .classList.remove('active');
+            });
+        }
+    });
+
+});
+</script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /*  FOOTER  */
+
+        .footer {
+            background: #1e293b;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding: 16px 0;
+            color: rgba(255,255,255,0.85);
+        }
+
+        .footer-inner {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+        }
+
+        .footer-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            white-space: nowrap;
+        }
+
+        .footer-left i {
+            font-size: 1.3rem;
+        }
+
+        .footer-title {
+            font-weight: 600;
+            color: white;
+        }
+
+        .footer-sep {
+            opacity: 0.35;
+        }
+
+        .footer-meta {
+            font-size: 0.85rem;
+            opacity: 0.85;
+        }
+
+        .footer-center {
+            font-size: 0.8rem;
+            opacity: 0.6;
+            white-space: nowrap;
+        }
+
+        .footer-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .footer-github {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            text-decoration: none;
+        }
+
+        .footer * {
+            animation: none !important;
+            transition: none !important;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+
+<body>
+
+{% if current_user.is_authenticated %}
+<nav class="navbar">
+    <div class="nav-container">
+        <div class="nav-brand">
+            <i class="fas fa-coffee"></i>
+            <span>MikroTik Manager</span>
+        </div>
+
+        <div class="nav-menu">
+            <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+                <i class="fas fa-home"></i> Дашборд
+            </a>
+
+            <a href="{{ url_for('devices') }}" class="nav-link {% if request.endpoint in ['devices','add_device','edit_device'] %}active{% endif %}">
+                <i class="fas fa-server"></i> Устройства
+            </a>
+
+            <div class="nav-dropdown batch-ops">
+                <button class="nav-link dropdown-toggle">
+                    <i class="fas fa-cogs"></i> Массовые операции
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu">
+                    <a href="{{ url_for('batch_check') }}" class="dropdown-item {% if request.endpoint == 'batch_check' %}active{% endif %}">
+                        <i class="fas fa-sync-alt"></i> Проверка обновлений
+                    </a>
+                    <a href="{{ url_for('batch_update') }}" class="dropdown-item {% if request.endpoint == 'batch_update' %}active{% endif %}">
+                        <i class="fas fa-rocket"></i> Массовое обновление
+                    </a>
+                </div>
+            </div>
+
+            <a href="{{ url_for('tasks') }}" class="nav-link {% if request.endpoint in ['tasks','add_task','task_details'] %}active{% endif %}">
+                <i class="fas fa-tasks"></i> Задачи
+            </a>
+
+            <a href="{{ url_for('logs') }}" class="nav-link {% if request.endpoint == 'logs' %}active{% endif %}">
+                <i class="fas fa-clipboard-list"></i> Логи
+            </a>
+
+            {% if current_user.role == 'admin' %}
+            <a href="{{ url_for('users') }}" class="nav-link {% if request.endpoint in ['users','add_user','edit_user'] %}active{% endif %}">
+                <i class="fas fa-users"></i> Пользователи
+            </a>
+            {% endif %}
+
+            <div class="nav-dropdown">
+                <button class="nav-link dropdown-toggle">
+                    <i class="fas fa-user-circle"></i> {{ current_user.username }}
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu">
+                    <a href="{{ url_for('profile') }}" class="dropdown-item {% if request.endpoint == 'profile' %}active{% endif %}">
+                        <i class="fas fa-user"></i> Профиль
+                    </a>
+                    <div class="dropdown-divider"></div>
+                    <a href="{{ url_for('logout') }}" class="dropdown-item">
+                        <i class="fas fa-sign-out-alt"></i> Выход
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<main class="main-content">
+    <div class="page-header">
+        <div class="page-title">
+            {% block page_title %}{% endblock %}
+        </div>
+        <div class="page-actions">
+            {% block page_actions %}{% endblock %}
+        </div>
+    </div>
+    
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-left">
+            <i class="fas fa-coffee"></i>
+            <span class="footer-title">MikroTik Manager</span>
+            <span class="footer-sep">|</span>
+            <span class="footer-meta">v0.9.6.2 · By 
+                <a href="https://github.com/RegentsVoice/MikrotikManager" target="_blank" rel="noopener noreferrer" class="author-link">
+                    Regent'sVoice
+                </a>
+            </span>
+        </div>
+        <div class="footer-center">
+            © 2025 MikroTik Manager · MIT License
+        </div>
+    </div>
+</footer>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

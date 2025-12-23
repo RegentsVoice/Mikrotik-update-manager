@@ -1,0 +1,1018 @@
+{% extends "base.html" %}
+
+{% block title %}Управление пользователями - MikroTik Manager{% endblock %}
+
+
+{% block content %}
+<div class="stats-grid mb-4">
+    <div class="stat-card">
+        <div class="stat-icon total-users">
+            <i class="fas fa-users"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.total_users }}</h3>
+            <p>Всего пользователей</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon admins">
+            <i class="fas fa-crown"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.admins_count }}</h3>
+            <p>Администраторов</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon managers">
+            <i class="fas fa-user-tie"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.managers_count }}</h3>
+            <p>Менеджеров</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {{ 'inactive' if stats.inactive_users > 0 else 'inactive-zero' }}">
+            <i class="fas {{ 'fa-user-slash' if stats.inactive_users > 0 else 'fa-user-check' }}"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ stats.inactive_users }}</h3>
+            <p>Неактивных</p>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-end mb-3" style="justify-content: flex-end !important;">
+    <div class="action-buttons">
+        <a href="{{ url_for('add_user') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus"></i> Добавить пользователя
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-between align-center">
+            <h5 class="card-title">
+                <i class="fas fa-users"></i> Пользователи системы
+            </h5>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if users %}
+        <div class="table-container">
+            <table class="table" id="usersTable">
+                <thead>
+                    <tr>
+                        <th>Пользователь</th>
+                        <th>Роль</th>
+                        <th>Контакт</th>
+                        <th>Статус</th>
+                        <th>Регистрация</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="user-row" data-username="{{ user.username }}" data-role="{{ user.role }}" data-status="{{ 'active' if user.is_active else 'inactive' }}">
+                        <td>
+                            <div class="user-info-cell">
+                                <div class="user-avatar">
+                                    <div class="avatar-circle-sm">
+                                        <span class="avatar-initial">{{ user.username[0]|upper }}</span>
+                                    </div>
+                                </div>
+                                <div class="user-details">
+                                    <div class="user-name">
+                                        {{ user.full_name or user.username }}
+                                    </div>
+                                    <div class="user-username">
+                                        @{{ user.username }}
+                                    </div>
+                                    {% if user.creator %}
+                                    <div class="user-created-by">
+                                        <small>Создан: {{ user.creator.username }}</small>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-{{ 'primary' if user.role == 'admin' else 'info' }}">
+                                <i class="fas {{ 'fa-crown' if user.role == 'admin' else 'fa-user-tie' }}"></i>
+                                {{ 'Администратор' if user.role == 'admin' else 'Менеджер' }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="contact-info">
+                                {% if user.email %}
+                                <div class="contact-item">
+                                    <i class="fas fa-envelope"></i>
+                                    <span class="contact-value" title="{{ user.email }}">
+                                        {{ user.email|truncate(25) }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if user.phone %}
+                                <div class="contact-item">
+                                    <i class="fas fa-phone"></i>
+                                    <span class="contact-value">{{ user.phone }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if not user.email and not user.phone %}
+                                <span class="no-contact">Не указано</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="status-cell">
+                                <span class="device-status {{ 'online' if user.is_active else 'offline' }}">
+                                    <i class="fas fa-circle"></i>
+                                    {{ 'Активен' if user.is_active else 'Неактивен' }}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="registration-info">
+                                <div class="reg-date">
+                                    {{ user.created_at.strftime('%d.%m.%Y') }}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                {% if current_user.id == user.id or current_user.role == 'admin' %}
+                                <a href="{{ url_for('edit_user', user_id=user.id) }}" 
+                                   class="btn btn-sm btn-outline"
+                                   title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                {% endif %}
+                                
+                                {% if current_user.role == 'admin' and current_user.id != user.id %}
+                                <button class="btn btn-sm btn-{{ 'warning' if user.is_active else 'success' }}" 
+                                        onclick="toggleUserStatus({{ user.id }}, {{ user.is_active|lower }})"
+                                        title="{{ 'Деактивировать' if user.is_active else 'Активировать' }}">
+                                    <i class="fas fa-toggle-{{ 'on' if user.is_active else 'off' }}"></i>
+                                </button>
+                                {% endif %}
+                                
+                                {% if current_user.role == 'admin' and current_user.id != user.id %}
+                                <button class="btn btn-sm btn-outline btn-danger" 
+                                        onclick="deleteUser({{ user.id }})"
+                                        title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-users fa-3x"></i>
+            <h6>Пользователи не найдены</h6>
+            <p>Добавьте первого пользователя системы</p>
+            <a href="{{ url_for('add_user') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus"></i> Добавить пользователя
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .justify-between {
+        justify-content: space-between;
+    }
+    
+    .align-center {
+        align-items: center;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .ml-2 {
+        margin-left: 10px;
+    }
+    
+    /* Сетка статистики - ТАК ЖЕ КАК НА DASHBOARD */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e9ecef;
+        transition: all 0.3s ease;
+        animation: fadeInUp 0.5s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+        min-height: 80px;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        border-color: #dee2e6;
+    }
+
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+        color: white;
+        flex-shrink: 0;
+    }
+    
+    .stat-icon.total-users {
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+    }
+    
+    .stat-icon.admins {
+        background: linear-gradient(135deg, #f72585, #b5179e);
+    }
+    
+    .stat-icon.managers {
+        background: linear-gradient(135deg, #4cc9f0, #4895ef);
+    }
+    
+    .stat-icon.inactive {
+        background: linear-gradient(135deg, #f8961e, #f3722c);
+    }
+    
+    .stat-icon.inactive-zero {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+    }
+
+    .stat-info h3 {
+        margin: 0 0 4px 0;
+        font-size: 24px;
+        font-weight: 700;
+        color: #2d3748;
+        line-height: 1;
+    }
+
+    .stat-info p {
+        margin: 0;
+        font-size: 13px;
+        color: #718096;
+        font-weight: 500;
+    }
+
+    /* Анимационные задержки как на дашборде */
+    .stat-card:nth-child(1) { animation-delay: 0.1s; }
+    .stat-card:nth-child(2) { animation-delay: 0.2s; }
+    .stat-card:nth-child(3) { animation-delay: 0.3s; }
+    .stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+    /* Быстрые действия */
+    .page-actions {
+        margin-bottom: 20px;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+    
+    .action-buttons .btn {
+        padding: 12px 18px;
+        font-weight: 600;
+        font-size: 14px;
+        border-radius: 8px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        min-width: 180px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        text-decoration: none;
+        border: none;
+        cursor: pointer;
+        color: white;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .action-buttons .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        text-decoration: none;
+    }
+    
+    .action-buttons .btn-primary {
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+    }
+    
+    .action-buttons .btn-primary:hover {
+        background: linear-gradient(135deg, #3a56d4, #4361ee);
+    }
+    
+    .device-count {
+        font-size: 12px;
+        color: #718096;
+        background: #f8f9fa;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+    }
+    
+    /* Информация о пользователе */
+    .user-info-cell {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .avatar-circle-sm {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4361ee, #3a56d4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        flex-shrink: 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    .avatar-circle-sm:hover {
+        transform: scale(1.1) rotate(5deg);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+    
+    .avatar-initial {
+        text-transform: uppercase;
+    }
+    
+    .user-details {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    
+    .user-name {
+        font-weight: 600;
+        font-size: 14px;
+        color: #2d3748;
+    }
+    
+    .user-username {
+        font-size: 12px;
+        color: #718096;
+    }
+    
+    .user-created-by {
+        font-size: 11px;
+        color: #adb5bd;
+        margin-top: 2px;
+    }
+    
+    /* Контактная информация */
+    .contact-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 150px;
+    }
+    
+    .contact-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+    }
+    
+    .contact-item i {
+        width: 14px;
+        color: #718096;
+        flex-shrink: 0;
+    }
+    
+    .contact-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .no-contact {
+        font-size: 12px;
+        color: #adb5bd;
+        font-style: italic;
+    }
+    
+    /* Статус пользователя */
+    .status-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    /* Информация о регистрации */
+    .registration-info {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+    }
+    
+    .reg-date {
+        font-weight: 500;
+        color: #2d3748;
+        font-size: 13px;
+    }
+    
+    .table-actions {
+        display: flex;
+        gap: 6px;
+    }
+    
+    .table-actions .btn-sm {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        transition: all 0.2s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 32px;
+    }
+    
+    .table-actions .btn-sm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+    }
+    
+    .btn-outline {
+        background: white;
+        border: 1px solid #4361ee;
+        color: #4361ee;
+    }
+    
+    .btn-outline:hover {
+        background: #4361ee;
+        color: white;
+    }
+    
+    .btn-success {
+        background: linear-gradient(135deg, #2ecc71, #27ae60);
+        border: none;
+        color: white;
+    }
+    
+    .btn-warning {
+        background: linear-gradient(135deg, #f39c12, #e67e22);
+        border: none;
+        color: white;
+    }
+    
+    .btn-danger {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        border: none;
+        color: white;
+    }
+    
+    /* Бейджи */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    .badge-primary {
+        background: rgba(67, 97, 238, 0.15);
+        color: #4361ee;
+    }
+    
+    .badge-info {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    /* Статус устройства/пользователя */
+    .device-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        padding: 5px 10px;
+        border-radius: 12px;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+    
+    .device-status i {
+        font-size: 8px;
+    }
+    
+    .device-status.online {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    .device-status.online i {
+        color: #4cc9f0;
+        animation: pulse 2s infinite;
+    }
+    
+    .device-status.offline {
+        background: rgba(247, 37, 133, 0.15);
+        color: #f72585;
+    }
+    
+    .device-status.offline i {
+        color: #f72585;
+    }
+    
+    /* Пустое состояние */
+    .empty-state {
+        text-align: center;
+        padding: 40px 20px;
+        color: #adb5bd;
+        animation: fadeIn 0.8s ease forwards;
+        opacity: 0;
+        min-height: 200px;
+    }
+    
+    .empty-state i {
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    .empty-state h6 {
+        margin-bottom: 10px;
+        color: #718096;
+        font-size: 16px;
+        font-weight: 600;
+    }
+    
+    .empty-state p {
+        margin-bottom: 25px;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
+        font-size: 14px;
+        color: #adb5bd;
+    }
+    
+    .empty-state .btn {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+    
+    .empty-state .btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    /* Анимации как на дашборде */
+    @keyframes fadeInUp {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes scaleIn {
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes slideInRow {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+    
+    @keyframes ripple {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+    
+    /* Основная карточка */
+    .card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e9ecef;
+        overflow: hidden;
+        animation: scaleIn 0.6s ease forwards;
+        opacity: 0;
+        transform: scale(0.95);
+        animation-delay: 0.5s;
+    }
+    
+    .card-header {
+        padding: 15px 20px;
+        border-bottom: 1px solid #e9ecef;
+        background: white;
+    }
+    
+    .card-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: #2d3748;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .card-title i {
+        color: #4361ee;
+    }
+    
+    .card-body {
+        padding: 20px;
+    }
+    
+    /* Таблица */
+	.table thead {
+		background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+		border-bottom: 2px solid #dee2e6;
+	}
+
+
+
+	/* Добавляем тонкую линию под заголовками для лучшего разделения */
+	.table th:not(:last-child)::after {
+		content: '';
+		position: absolute;
+		right: 0;
+		top: 20%;
+		height: 60%;
+		width: 1px;
+		background: rgba(67, 97, 238, 0.2);
+	}
+
+	.table th:hover {
+		background: linear-gradient(135deg, #e9ecef, #dee2e6);
+		color: #4361ee;
+	}
+
+	/* Конкретные заголовки с оптимальной шириной */
+	.table th:nth-child(1) { /* Пользователь */
+		min-width: 200px;
+	}
+
+	.table th:nth-child(2) { /* Роль */
+		min-width: 120px;
+	}
+
+	.table th:nth-child(3) { /* Контакт */
+		min-width: 180px;
+	}
+
+	.table th:nth-child(4) { /* Статус */
+		min-width: 100px;
+		text-align: center;
+	}
+
+	.table th:nth-child(5) { /* Регистрация */
+		min-width: 120px;
+	}
+
+	.table th:nth-child(6) { /* Действия */
+		min-width: 150px;
+		text-align: center;
+	}
+    
+    /* Задержки анимации строк */
+    .user-row:nth-child(1) { animation-delay: 0.6s; }
+    .user-row:nth-child(2) { animation-delay: 0.65s; }
+    .user-row:nth-child(3) { animation-delay: 0.7s; }
+    .user-row:nth-child(4) { animation-delay: 0.75s; }
+    .user-row:nth-child(5) { animation-delay: 0.8s; }
+    .user-row:nth-child(6) { animation-delay: 0.85s; }
+    
+    /* Адаптивность */
+    @media (max-width: 992px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+        
+        .action-buttons .btn {
+            width: 100%;
+            min-width: unset;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        
+        .stat-card {
+            padding: 12px;
+            min-height: 70px;
+        }
+        
+        .stat-icon {
+            width: 45px;
+            height: 45px;
+            font-size: 18px;
+        }
+        
+        .stat-info h3 {
+            font-size: 20px;
+        }
+        
+        .table {
+            display: block;
+            overflow-x: auto;
+        }
+        
+        .user-info-cell {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .table-actions {
+            flex-wrap: wrap;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .stat-info h3 {
+            font-size: 18px;
+        }
+        
+        .stat-info p {
+            font-size: 12px;
+        }
+        
+        .empty-state {
+            padding: 30px 15px;
+            min-height: 180px;
+        }
+        
+        .empty-state i {
+            font-size: 32px;
+        }
+        
+        .empty-state h6 {
+            font-size: 14px;
+        }
+        
+        .empty-state p {
+            font-size: 13px;
+        }
+        
+        .card-header, .card-body {
+            padding: 15px;
+        }
+        
+        .table-actions {
+            flex-direction: column;
+        }
+        
+        .table-actions .btn-sm {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleUserStatus(userId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const actionText = isActive ? 'деактивирован' : 'активирован';
+    const confirmText = isActive ? 
+        'Вы уверены, что хотите деактивировать этого пользователя?\n\nПользователь не сможет входить в систему.' :
+        'Вы уверены, что хотите активировать этого пользователя?\n\nПользователь сможет войти в систему.';
+    
+    if (confirm(confirmText)) {
+        fetch(`/users/${userId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`Пользователь успешно ${actionText}!`, 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function deleteUser(userId) {
+    if (confirm('❌ Вы уверены, что хотите удалить этого пользователя?\n\n' +
+               '• Все устройства и задачи пользователя будут переданы вам\n' +
+               '• Все связанные логи будут сохранены\n' +
+               '• Это действие нельзя отменить')) {
+        fetch(`/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Пользователь успешно удален!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const mainContent = document.querySelector('.main-content');
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        mainContent.insertBefore(newContainer, mainContent.firstChild);
+        newContainer.appendChild(notification);
+    } else {
+        container.appendChild(notification);
+    }
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        this.parentElement.style.opacity = '0';
+        setTimeout(() => {
+            this.parentElement.remove();
+        }, 300);
+    });
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Users page loaded');
+    
+    const buttons = document.querySelectorAll('.action-buttons .btn, .table-actions .btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.7);
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                width: ${size}px;
+                height: ${size}px;
+                top: ${y}px;
+                left: ${x}px;
+                pointer-events: none;
+                z-index: 1;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    document.querySelectorAll('.stat-card').forEach(card => {
+        const icon = card.querySelector('.stat-icon');
+        
+        card.addEventListener('mouseenter', function() {
+            icon.style.transform = 'rotate(10deg) scale(1.1)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            icon.style.transform = 'rotate(0) scale(1)';
+        });
+    });
+    
+    const activeStatus = document.querySelectorAll('.device-status.online');
+    activeStatus.forEach(status => {
+        status.querySelector('i').style.animation = 'pulse 2s infinite';
+    });
+    
+    const avatars = document.querySelectorAll('.avatar-circle-sm');
+    avatars.forEach(avatar => {
+        avatar.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.1) rotate(5deg)';
+        });
+        
+        avatar.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        });
+    });
+});
+</script>
+{% endblock %}
+[file content end]

@@ -1,0 +1,997 @@
+{% extends "base.html" %}
+
+{% block title %}Системная информация - {{ device.name }} - MikroTik Manager{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-server"></i> Системная информация: {{ device.name }}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('check_device_update', device_id=device.id) }}" 
+           class="btn-unified btn-primary">
+            <i class="fas fa-sync-alt"></i> Проверить обновления
+        </a>
+        <a href="{{ url_for('get_device_system_info', device_id=device.id) }}" 
+           class="btn-unified btn-outline">
+            <i class="fas fa-redo"></i> Обновить
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="device-status-info">
+            <div class="status-item">
+                <div class="status-label">
+                    <i class="fas fa-server"></i> Устройство
+                </div>
+                <div class="status-value">
+                    <strong>{{ device.name }}</strong> ({{ device.ip_address }}:{{ device.port }})
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">
+                    <i class="fas fa-clock"></i> Время устройства
+                </div>
+                <div class="status-value">
+                    {{ info.basic.current_time }}
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">
+                    <i class="fas fa-hourglass-half"></i> Время работы
+                </div>
+                <div class="status-value">
+                    {{ info.basic.uptime }}
+                </div>
+            </div>
+            <div class="status-item">
+                <div class="status-label">
+                    <i class="fas fa-microchip"></i> Версия RouterOS
+                </div>
+                <div class="status-value">
+                    <span class="badge badge-primary">{{ info.basic.version }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="tabs-container mb-4">
+    <div class="tabs-header">
+        <div class="tabs-nav">
+            <button class="tab-button active" data-tab="basic">
+                <i class="fas fa-info-circle"></i> Основное
+            </button>
+            <button class="tab-button" data-tab="hardware">
+                <i class="fas fa-microchip"></i> Оборудование
+            </button>
+            <button class="tab-button" data-tab="resources">
+                <i class="fas fa-chart-bar"></i> Ресурсы
+            </button>
+            <button class="tab-button" data-tab="network">
+                <i class="fas fa-network-wired"></i> Сеть
+            </button>
+            <button class="tab-button" data-tab="packages">
+                <i class="fas fa-box-open"></i> Пакеты
+            </button>
+        </div>
+    </div>
+    
+    <div class="tabs-content">
+        <div class="tab-pane active" id="basic">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-info-circle"></i> Информация о системе
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-tag"></i> Имя в системе
+                                    </div>
+                                    <div class="info-value">
+                                        <code>{{ info.basic.identity }}</code>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-code-branch"></i> Архитектура
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.basic.architecture }}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-key"></i> Уровень лицензии
+                                    </div>
+                                    <div class="info-value">
+                                        <span class="badge badge-warning">{{ info.license.level }}</span>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-calendar-alt"></i> Дата проверки
+                                    </div>
+                                    <div class="info-value">
+                                        {{ device.last_check.strftime('%d.%m.%Y %H:%M') if device.last_check else 'Никогда' }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">
+                                <i class="fas fa-bolt"></i> Быстрые действия
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="action-buttons-vertical">
+                                <a href="{{ url_for('check_device_update', device_id=device.id) }}" 
+                                   class="btn-unified btn-primary btn-block">
+                                    <i class="fas fa-sync-alt"></i> Проверить обновления
+                                </a>
+                                <a href="{{ url_for('device_backups', device_id=device.id) }}" 
+                                   class="btn-unified btn-warning btn-block">
+                                    <i class="fas fa-save"></i> Резервные копии
+                                </a>
+                                <a href="{{ url_for('test_device_connection', device_id=device.id) }}"
+                                   class="btn-unified btn-outline btn-block">
+                                    <i class="fas fa-bug"></i> Отладка подключения
+                                </a>
+                                <a href="{{ url_for('test_device_connection', device_id=device.id) }}" 
+                                   class="btn-unified btn-outline btn-block">
+                                    <i class="fas fa-network-wired"></i> Тест подключения
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="hardware">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-microchip"></i> Информация о RouterBoard
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-desktop"></i> Модель
+                                    </div>
+                                    <div class="info-value">
+                                        <strong>{{ info.hardware.board_name }}</strong>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-barcode"></i> Серийный номер
+                                    </div>
+                                    <div class="info-value">
+                                        <code>{{ info.hardware.serial_number }}</code>
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-microchip"></i> Тип прошивки
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.hardware.firmware_type }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-code"></i> Версия прошивки
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.hardware.board_version }}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-thermometer-half"></i> Температура
+                                    </div>
+                                    <div class="info-value">
+                                        {% if info.hardware.temperature != 'N/A' %}
+                                            {% set temp = info.hardware.temperature|replace('°C', '')|float %}
+                                            {% if temp < 50 %}
+                                                <span class="temp-low">
+                                                    <i class="fas fa-thermometer-empty"></i> {{ info.hardware.temperature }}
+                                                </span>
+                                            {% elif temp < 70 %}
+                                                <span class="temp-medium">
+                                                    <i class="fas fa-thermometer-half"></i> {{ info.hardware.temperature }}
+                                                </span>
+                                            {% else %}
+                                                <span class="temp-high">
+                                                    <i class="fas fa-thermometer-full"></i> {{ info.hardware.temperature }}
+                                                </span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">{{ info.hardware.temperature }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-hdd"></i> Хранилище
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.hardware.storage }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="resources">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-between align-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-memory"></i> Использование памяти
+                                </h5>
+                                <span class="badge badge-info">RAM</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            {% set mem_parts = info.resources.free_memory.split(' ') %}
+                            {% set total_parts = info.resources.total_memory.split(' ') %}
+                            {% if mem_parts|length == 2 and total_parts|length == 2 %}
+                                {% set free_val = mem_parts[0]|float %}
+                                {% set total_val = total_parts[0]|float %}
+                                {% set used_val = total_val - free_val %}
+                                {% set usage_percent = (used_val / total_val * 100)|round(1) %}
+                                
+                                <div class="progress-container">
+                                    <div class="progress-info">
+                                        <div class="progress-stats">
+                                            <span class="stat-value">{{ usage_percent }}%</span>
+                                            <span class="stat-details">{{ used_val|round(2) }} {{ total_parts[1] }} использовано из {{ total_val }} {{ total_parts[1] }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" style="width: {{ usage_percent }}%;"></div>
+                                    </div>
+                                    <div class="progress-labels">
+                                        <span>0%</span>
+                                        <span>100%</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="memory-info">
+                                    <div class="memory-free">
+                                        <i class="fas fa-check-circle"></i> Свободно: {{ info.resources.free_memory }}
+                                    </div>
+                                    <div class="memory-total">
+                                        <i class="fas fa-server"></i> Всего: {{ info.resources.total_memory }}
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-between align-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-microchip"></i> Процессор
+                                </h5>
+                                <span class="badge badge-info">CPU</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-tachometer-alt"></i> Загрузка CPU
+                                    </div>
+                                    <div class="info-value">
+                                        {% set cpu_load_val = info.resources.cpu_load|replace('%', '')|int %}
+                                        {% if cpu_load_val < 50 %}
+                                            <span class="cpu-low">
+                                                <i class="fas fa-microchip"></i> {{ info.resources.cpu_load }}
+                                            </span>
+                                        {% elif cpu_load_val < 80 %}
+                                            <span class="cpu-medium">
+                                                <i class="fas fa-microchip"></i> {{ info.resources.cpu_load }}
+                                            </span>
+                                        {% else %}
+                                            <span class="cpu-high">
+                                                <i class="fas fa-microchip"></i> {{ info.resources.cpu_load }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-layer-group"></i> Количество ядер
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.resources.cpu_count }}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="fas fa-tachometer-alt"></i> Частота CPU
+                                    </div>
+                                    <div class="info-value">
+                                        {{ info.resources.cpu_frequency }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="network">
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <div class="d-flex justify-between align-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-network-wired"></i> Сетевые интерфейсы
+                                </h5>
+                                <span class="badge badge-primary">{{ info.interfaces|length }}</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Интерфейс</th>
+                                            <th>Тип</th>
+                                            <th>Статус</th>
+                                            <th>MAC</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for iface in info.interfaces %}
+                                        <tr>
+                                            <td>
+                                                <code>{{ iface.name }}</code>
+                                            </td>
+                                            <td>
+                                                <small>{{ iface.type }}</small>
+                                            </td>
+                                            <td>
+                                                {% if iface.running == 'true' %}
+                                                    <span class="status-badge status-active">
+                                                        <i class="fas fa-circle"></i> Up
+                                                    </span>
+                                                {% else %}
+                                                    <span class="status-badge status-inactive">
+                                                        <i class="fas fa-circle"></i> Down
+                                                    </span>
+                                                {% endif %}
+                                                {% if iface.disabled == 'true' %}
+                                                    <span class="badge badge-secondary ml-2">
+                                                        <i class="fas fa-ban"></i> Disabled
+                                                    </span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small>{{ iface.get('mac-address', 'N/A') }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-between align-center">
+                                <h5 class="card-title">
+                                    <i class="fas fa-address-card"></i> IP адреса
+                                </h5>
+                                <span class="badge badge-primary">{{ info.ip_addresses|length }}</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-container">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>IP адрес</th>
+                                            <th>Интерфейс</th>
+                                            <th>Сеть</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ip in info.ip_addresses %}
+                                        <tr>
+                                            <td>
+                                                <code>{{ ip.address }}</code>
+                                            </td>
+                                            <td>
+                                                <small>{{ ip.interface }}</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ ip.get('network', 'N/A') }}</small>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-pane" id="packages">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-between align-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-box-open"></i> Установленные пакеты
+                        </h5>
+                        <span class="badge badge-primary">{{ info.packages|length }}</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-container">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Пакет</th>
+                                    <th>Версия</th>
+                                    <th>Статус</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pkg in info.packages %}
+                                <tr>
+                                    <td>
+                                        <div class="package-info">
+                                            <div class="package-icon">
+                                                {% if pkg.name == 'routeros' %}
+                                                    <i class="fas fa-cube text-primary"></i>
+                                                {% elif pkg.name == 'routeros-mipsbe' %}
+                                                    <i class="fas fa-microchip text-success"></i>
+                                                {% elif pkg.name == 'wireless' %}
+                                                    <i class="fas fa-wifi text-info"></i>
+                                                {% elif pkg.name == 'security' %}
+                                                    <i class="fas fa-shield-alt text-warning"></i>
+                                                {% else %}
+                                                    <i class="fas fa-box text-secondary"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="package-name">
+                                                {{ pkg.name }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <code>{{ pkg.version }}</code>
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-active">
+                                            <i class="fas fa-check-circle"></i> Установлен
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex justify-between align-center">
+            <a href="{{ url_for('devices') }}" class="btn-unified btn-secondary">
+                <i class="fas fa-arrow-left"></i> Назад к устройствам
+            </a>
+            <div class="action-buttons">
+                <a href="{{ url_for('edit_device', device_id=device.id) }}" 
+                   class="btn-unified btn-warning">
+                    <i class="fas fa-edit"></i> Редактировать устройство
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Общие стили для страницы системной информации */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 -10px;
+}
+
+.col-lg-6, .col-md-6 {
+    padding: 0 10px;
+    flex: 0 0 100%;
+    max-width: 100%;
+}
+
+@media (min-width: 768px) {
+    .col-md-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+@media (min-width: 992px) {
+    .col-lg-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+/* Статус устройства */
+.device-status-info {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 15px;
+}
+
+.status-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 12px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+}
+
+.status-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+.status-label i {
+    width: 16px;
+    color: var(--primary-color);
+}
+
+.status-value {
+    font-weight: 600;
+    color: var(--dark-color);
+    font-size: 1rem;
+}
+
+.status-value code {
+    background: rgba(67, 97, 238, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+/* Табы */
+.tabs-container {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.tabs-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    padding: 0;
+}
+
+.tabs-nav {
+    display: flex;
+    overflow-x: auto;
+    scrollbar-width: thin;
+}
+
+.tab-button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.9);
+    font-family: var(--font-family);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    flex: 1;
+    justify-content: center;
+}
+
+.tab-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.tab-button.active {
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-weight: 600;
+    box-shadow: inset 0 -3px 0 white;
+}
+
+.tabs-content {
+    padding: 0;
+}
+
+.tab-pane {
+    display: none;
+    padding: 25px;
+}
+
+.tab-pane.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Информационные сетки */
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+    color: var(--dark-gray);
+    flex: 1;
+}
+
+.info-label i {
+    width: 20px;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.info-value {
+    font-weight: 600;
+    color: var(--dark-color);
+    text-align: right;
+    flex: 1;
+}
+
+.info-value code {
+    background: rgba(67, 97, 238, 0.1);
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: 'SF Mono', Consolas, Monaco, monospace;
+}
+
+/* Вертикальные кнопки действий */
+.action-buttons-vertical {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Прогресс-бары */
+.progress-container {
+    margin-top: 10px;
+}
+
+.progress-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.progress-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--dark-color);
+}
+
+.stat-details {
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+.progress-bar {
+    height: 12px;
+    background: var(--light-gray);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    border-radius: 6px;
+    transition: width 0.6s ease;
+}
+
+.progress-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--gray);
+}
+
+/* Информация о памяти */
+.memory-info {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.memory-free, .memory-total {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+}
+
+.memory-free i {
+    color: var(--success-color);
+}
+
+.memory-total i {
+    color: var(--primary-color);
+}
+
+/* Информация о пакетах */
+.package-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.package-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--light-gray);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.package-name {
+    font-weight: 500;
+    color: var(--dark-color);
+}
+
+/* Цвета для статусов */
+.temp-low { color: #4cc9f0; }
+.temp-medium { color: #f8961e; }
+.temp-high { color: #f72585; }
+
+.cpu-low { color: #4cc9f0; }
+.cpu-medium { color: #f8961e; }
+.cpu-high { color: #f72585; }
+
+/* Адаптивность */
+@media (max-width: 992px) {
+    .tabs-nav {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        flex: 0 0 auto;
+        justify-content: flex-start;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .tab-button:last-child {
+        border-bottom: none;
+    }
+    
+    .tab-button.active {
+        box-shadow: inset 3px 0 0 white;
+    }
+    
+    .device-status-info {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .tab-pane {
+        padding: 15px;
+    }
+    
+    .card-body {
+        padding: 15px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    
+    .action-buttons .btn-unified {
+        width: 100%;
+    }
+    
+    .d-flex {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .d-flex.justify-between .btn-unified {
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .tabs-container {
+        border-radius: 0;
+        margin: 0 -20px;
+    }
+    
+    .tab-button {
+        padding: 12px 15px;
+        font-size: 13px;
+    }
+    
+    .tab-button i {
+        font-size: 0.9rem;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .info-value {
+        text-align: left;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabPanes = document.querySelectorAll('.tab-pane');
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const tabId = this.getAttribute('data-tab');
+            
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            
+            tabPanes.forEach(pane => {
+                pane.classList.remove('active');
+                pane.style.display = 'none';
+            });
+            
+            this.classList.add('active');
+            const targetTab = document.getElementById(tabId);
+            if (targetTab) {
+                targetTab.classList.add('active');
+                targetTab.style.display = 'block';
+                
+                window.location.hash = tabId;
+            }
+        });
+    });
+    
+    const hash = window.location.hash.substring(1);
+    if (hash && document.getElementById(hash)) {
+        const tabButton = document.querySelector(`[data-tab="${hash}"]`);
+        if (tabButton) {
+            tabButton.click();
+        }
+    }
+    
+    window.printPage = function() {
+        window.print();
+    };
+    
+    const progressFills = document.querySelectorAll('.progress-fill');
+    progressFills.forEach(fill => {
+        const width = fill.style.width;
+        fill.style.width = '0%';
+        setTimeout(() => {
+            fill.style.width = width;
+        }, 300);
+    });
+    
+    const tabContent = document.querySelector('.tabs-content');
+    if (tabContent) {
+        tabContent.style.opacity = '0';
+        setTimeout(() => {
+            tabContent.style.transition = 'opacity 0.3s ease';
+            tabContent.style.opacity = '1';
+        }, 100);
+    }
+    
+    const statusBadge = document.querySelector('.status-badge.status-active');
+    if (statusBadge) {
+        setInterval(() => {
+            statusBadge.style.transform = 'scale(1.05)';
+            setTimeout(() => {
+                statusBadge.style.transform = 'scale(1)';
+            }, 500);
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

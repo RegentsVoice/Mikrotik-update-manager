@@ -1,0 +1,739 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить пользователя - MikroTik Manager{% endblock %}
+
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('users') }}" class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex align-center gap-2">
+                <i class="fas fa-user-plus"></i>
+                <h5 class="card-title mb-0">Добавить нового пользователя</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('add_user') }}" id="addUserForm" class="user-form">
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-user"></i> Основная информация
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username" class="form-label required">
+                                <i class="fas fa-at"></i> Имя пользователя
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" 
+                                   value="{{ form_data.username if form_data else '' }}" required
+                                   placeholder="username"
+                                   autocomplete="off">
+                            <div class="form-hint">Уникальное имя для входа в систему</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="full_name" class="form-label">
+                                <i class="fas fa-user-tag"></i> Полное имя
+                            </label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" 
+                                   value="{{ form_data.full_name if form_data else '' }}"
+                                   placeholder="Иван Иванов"
+                                   autocomplete="off">
+                            <div class="form-hint">Полное имя пользователя (опционально)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-address-book"></i> Контактная информация
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope"></i> Email адрес
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ form_data.email if form_data else '' }}"
+                                   placeholder="user@example.com"
+                                   autocomplete="off">
+                            <div class="form-hint">Для уведомлений и восстановления доступа</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone" class="form-label">
+                                <i class="fas fa-phone"></i> Телефон
+                            </label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ form_data.phone if form_data else '' }}"
+                                   placeholder="+7 (999) 999-99-99"
+                                   autocomplete="off">
+                            <div class="form-hint">Контактный телефон (опционально)</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-key"></i> Безопасность
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="password" class="form-label required">
+                                <i class="fas fa-lock"></i> Пароль
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="password" name="password" required
+                                       placeholder="Введите пароль"
+                                       autocomplete="new-password"
+                                       minlength="8">
+                                <button type="button" class="password-toggle" data-target="password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint">Минимум 8 символов</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirm_password" class="form-label required">
+                                <i class="fas fa-lock"></i> Подтверждение
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="confirm_password" 
+                                       name="confirm_password" required
+                                       placeholder="Повторите пароль"
+                                       autocomplete="new-password">
+                                <button type="button" class="password-toggle" data-target="confirm_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint">Повторите пароль для подтверждения</div>
+                        </div>
+                    </div>
+                    
+                    <div class="password-strength" id="passwordStrength">
+                        <div class="strength-meter">
+                            <div class="strength-bar"></div>
+                        </div>
+                        <div class="strength-text">Надежность пароля: <span>—</span></div>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-cog"></i> Настройки доступа
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="role" class="form-label required">
+                                <i class="fas fa-user-tag"></i> Роль пользователя
+                            </label>
+                            <div class="role-selector">
+                                <div class="role-options">
+                                    <label class="role-option {{ 'selected' if form_data and form_data.role == 'manager' else '' }}">
+                                        <input type="radio" name="role" value="manager" 
+                                               {{ 'checked' if not form_data or form_data.role == 'manager' }}>
+                                        <div class="role-icon">
+                                            <i class="fas fa-user-tie"></i>
+                                        </div>
+                                        <div class="role-info">
+                                            <div class="role-title">Менеджер</div>
+                                            <div class="role-description">
+                                                Управление устройствами и задачами
+                                            </div>
+                                        </div>
+                                    </label>
+                                    
+                                    <label class="role-option {{ 'selected' if form_data and form_data.role == 'admin' else '' }}">
+                                        <input type="radio" name="role" value="admin"
+                                               {{ 'checked' if form_data and form_data.role == 'admin' }}>
+                                        <div class="role-icon">
+                                            <i class="fas fa-crown"></i>
+                                        </div>
+                                        <div class="role-info">
+                                            <div class="role-title">Администратор</div>
+                                            <div class="role-description">
+                                                Полный доступ + управление пользователями
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="settings-options">
+                                <div class="form-checkbox">
+                                    <input type="checkbox" id="is_active" name="is_active" checked>
+                                    <label for="is_active" class="checkbox-label">
+                                        <i class="fas fa-user-check"></i>
+                                        Активный пользователь
+                                    </label>
+                                </div>
+                                <div class="form-hint">Пользователь сможет входить в систему</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-warning">
+                    <div class="warning-content">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div class="warning-text">
+                            <strong>Внимание:</strong> После создания пользователя обязательно передайте ему 
+                            имя пользователя и пароль для входа в систему.
+                        </div>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <a href="{{ url_for('users') }}" class="btn-unified btn-outline">
+                        <i class="fas fa-times"></i> Отмена
+                    </a>
+                    <button type="submit" class="btn-unified btn-primary">
+                        <i class="fas fa-user-plus"></i> Создать пользователя
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .user-form {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+    
+    /* Общие стили формы (как в add_device) */
+    .form-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--light-gray);
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+    }
+    
+    .form-label.required::after {
+        content: '*';
+        color: var(--danger-color);
+        margin-left: 4px;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-sm);
+        font-family: var(--font-family);
+        font-size: 14px;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    .form-hint {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-top: 5px;
+        line-height: 1.4;
+    }
+    
+    /* Пароль */
+    .password-input {
+        position: relative;
+    }
+    
+    .password-input .form-control {
+        padding-right: 50px;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--gray);
+        cursor: pointer;
+        padding: 5px;
+        transition: var(--transition);
+    }
+    
+    .password-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    .password-strength {
+        margin-top: 20px;
+    }
+    
+    .strength-meter {
+        height: 8px;
+        background: var(--light-gray);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .strength-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--danger-color);
+        border-radius: 4px;
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+    
+    .strength-text {
+        font-size: 0.85rem;
+        color: var(--gray);
+    }
+    
+    .strength-text span {
+        font-weight: 600;
+    }
+    
+    /* Выбор роли */
+    .role-selector {
+        margin-top: 10px;
+    }
+    
+    .role-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+    
+    .role-option {
+        position: relative;
+        padding: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .role-option:hover {
+        border-color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.05);
+    }
+    
+    .role-option.selected {
+        border-color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.1);
+    }
+    
+    .role-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .role-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+    }
+    
+    .role-option:first-child .role-icon {
+        background: rgba(67, 97, 238, 0.1);
+        color: var(--primary-color);
+    }
+    
+    .role-option:last-child .role-icon {
+        background: rgba(247, 37, 133, 0.1);
+        color: #f72585;
+    }
+    
+    .role-title {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 5px;
+        font-size: 1.1rem;
+    }
+    
+    .role-description {
+        font-size: 0.85rem;
+        color: var(--gray);
+        line-height: 1.4;
+    }
+    
+    /* Чекбокс */
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .form-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--dark-gray);
+        font-weight: 500;
+    }
+    
+    .checkbox-label i {
+        color: var(--primary-color);
+    }
+    
+    .settings-options {
+        padding-top: 20px;
+    }
+    
+    /* Предупреждение */
+    .form-warning {
+        margin-top: 20px;
+    }
+    
+    .warning-content {
+        display: flex;
+        align-items: flex-start;
+        gap: 15px;
+        padding: 20px;
+        background: linear-gradient(135deg, rgba(248, 150, 30, 0.1), rgba(248, 150, 30, 0.05));
+        border: 1px solid rgba(248, 150, 30, 0.2);
+        border-radius: var(--border-radius);
+    }
+    
+    .warning-content i {
+        color: var(--warning-color);
+        font-size: 1.5rem;
+        flex-shrink: 0;
+        margin-top: 3px;
+    }
+    
+    .warning-text {
+        color: var(--dark-color);
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+    
+    .warning-text strong {
+        color: var(--warning-color);
+    }
+    
+    /* Кнопки формы */
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 15px;
+        margin-top: 30px;
+        padding-top: 25px;
+        border-top: 1px solid var(--border-color);
+    }
+    
+    .form-actions .btn-unified {
+        min-width: 180px;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 0 10px;
+        }
+        
+        .form-section {
+            padding: 20px 15px;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        .role-options {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-actions {
+            flex-direction: column;
+        }
+        
+        .form-actions .btn-unified {
+            width: 100%;
+            min-width: auto;
+        }
+        
+        .warning-content {
+            flex-direction: column;
+            gap: 10px;
+            text-align: center;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .form-section {
+            padding: 15px;
+        }
+        
+        .form-control {
+            padding: 10px 12px;
+        }
+        
+        .form-actions {
+            gap: 10px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.password-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const passwordInput = document.getElementById(targetId);
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+    
+    const passwordInput = document.getElementById('password');
+    const strengthBar = document.querySelector('.strength-bar');
+    const strengthText = document.querySelector('.strength-text span');
+    
+    if (passwordInput && strengthBar && strengthText) {
+        passwordInput.addEventListener('input', function() {
+            const password = this.value;
+            let strength = 0;
+            let text = '—';
+            let color = '#f72585'; // Красный
+            
+            if (password.length >= 8) strength += 25;
+            if (/[A-Z]/.test(password)) strength += 25;
+            if (/[0-9]/.test(password)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+            
+            strength = Math.min(strength, 100);
+            
+            if (strength >= 75) {
+                text = 'Отличный';
+                color = '#4cc9f0'; // Синий
+            } else if (strength >= 50) {
+                text = 'Хороший';
+                color = '#f8961e'; // Оранжевый
+            } else if (strength >= 25) {
+                text = 'Слабый';
+                color = '#f72585'; // Розовый
+            } else if (password.length > 0) {
+                text = 'Очень слабый';
+                color = '#f72585'; // Розовый
+            }
+            
+            strengthBar.style.width = `${strength}%`;
+            strengthBar.style.backgroundColor = color;
+            strengthText.textContent = text;
+            strengthText.style.color = color;
+        });
+    }
+    
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    
+    if (passwordInput && confirmPasswordInput) {
+        function checkPasswords() {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (password && confirmPassword) {
+                if (password === confirmPassword) {
+                    confirmPasswordInput.style.borderColor = '#4cc9f0';
+                    confirmPasswordInput.style.boxShadow = '0 0 0 3px rgba(76, 201, 240, 0.1)';
+                } else {
+                    confirmPasswordInput.style.borderColor = '#f72585';
+                    confirmPasswordInput.style.boxShadow = '0 0 0 3px rgba(247, 37, 133, 0.1)';
+                }
+            } else {
+                confirmPasswordInput.style.borderColor = '';
+                confirmPasswordInput.style.boxShadow = '';
+            }
+        }
+        
+        passwordInput.addEventListener('input', checkPasswords);
+        confirmPasswordInput.addEventListener('input', checkPasswords);
+    }
+    
+    const roleOptions = document.querySelectorAll('.role-option');
+    roleOptions.forEach(option => {
+        option.addEventListener('click', function() {
+            roleOptions.forEach(opt => {
+                opt.classList.remove('selected');
+                const radio = opt.querySelector('input[type="radio"]');
+                radio.checked = false;
+            });
+            
+            this.classList.add('selected');
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+        });
+    });
+    
+    const form = document.getElementById('addUserForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Пароли не совпадают');
+                confirmPasswordInput.focus();
+                return false;
+            }
+            
+            if (password.length < 8) {
+                e.preventDefault();
+                alert('Пароль должен содержать минимум 8 символов');
+                passwordInput.focus();
+                return false;
+            }
+            
+            const username = document.getElementById('username').value;
+            if (!username || username.length < 3) {
+                e.preventDefault();
+                alert('Имя пользователя должно содержать минимум 3 символа');
+                document.getElementById('username').focus();
+                return false;
+            }
+            
+            const role = document.querySelector('input[name="role"]:checked').value;
+            if (role === 'admin') {
+                if (!confirm('⚠️ Вы создаете пользователя с правами администратора.\n\nАдминистраторы имеют полный доступ ко всем функциям системы.\n\nПродолжить?')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            
+            if (!confirm('Создать нового пользователя?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+    
+    const firstInput = document.getElementById('username');
+    if (firstInput) {
+        setTimeout(() => {
+            firstInput.focus();
+        }, 300);
+    }
+    
+    const formSections = document.querySelectorAll('.form-section');
+    formSections.forEach((section, index) => {
+        section.style.animationDelay = `${index * 0.1}s`;
+        section.classList.add('fade-in-up');
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .role-option:hover .role-icon {
+            animation: pulse 0.5s ease;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

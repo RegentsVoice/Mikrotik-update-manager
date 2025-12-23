@@ -1,0 +1,1049 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование пользователя - MikroTik Manager{% endblock %}
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{% if editing_user.id == current_user.id %}{{ url_for('profile') }}{% else %}{{ url_for('users') }}{% endif %}" 
+           class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад
+        </a>
+        <button type="submit" form="editUserForm" class="btn-unified btn-primary">
+            <i class="fas fa-save"></i> Сохранить
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex align-center justify-between">
+                <div class="d-flex align-center gap-2">
+                    {% if editing_user.id == current_user.id %}
+                    <i class="fas fa-user"></i>
+                    <h5 class="card-title mb-0">Редактирование моего профиля</h5>
+                    {% else %}
+                    <i class="fas fa-user-edit"></i>
+                    <h5 class="card-title mb-0">Редактирование пользователя</h5>
+                    {% endif %}
+                </div>
+                <div class="user-status">
+                    <span class="status-badge {{ 'status-active' if editing_user.is_active else 'status-inactive' }}">
+                        <i class="fas fa-circle"></i>
+                        {{ 'Активен' if editing_user.is_active else 'Неактивен' }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('edit_user', user_id=editing_user.id) }}" id="editUserForm" class="user-form">
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-id-card"></i> Основная информация
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username" class="form-label {{ 'disabled' if not current_user.role == 'admin' }}">
+                                <i class="fas fa-at"></i> Имя пользователя
+                            </label>
+                            <input type="text" class="form-control {{ 'readonly' if not current_user.role == 'admin' }}" 
+                                   id="username" name="username" value="{{ editing_user.username }}" 
+                                   {{ 'readonly' if not current_user.role == 'admin' else 'required' }}>
+                            <div class="form-hint">
+                                {% if current_user.role == 'admin' %}
+                                Уникальное имя для входа в систему
+                                {% else %}
+                                Имя пользователя можно изменить только через администратора
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="full_name" class="form-label">
+                                <i class="fas fa-user-tag"></i> Полное имя
+                            </label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" 
+                                   value="{{ editing_user.full_name or '' }}"
+                                   placeholder="Иван Иванов">
+                            <div class="form-hint">Полное имя пользователя</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-address-book"></i> Контактная информация
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email" class="form-label">
+                                <i class="fas fa-envelope"></i> Email адрес
+                            </label>
+                            <input type="email" class="form-control" id="email" name="email" 
+                                   value="{{ editing_user.email or '' }}"
+                                   placeholder="user@example.com">
+                            <div class="form-hint">Для уведомлений и восстановления доступа</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="phone" class="form-label">
+                                <i class="fas fa-phone"></i> Телефон
+                            </label>
+                            <input type="tel" class="form-control" id="phone" name="phone" 
+                                   value="{{ editing_user.phone or '' }}"
+                                   placeholder="+7 (999) 999-99-99">
+                            <div class="form-hint">Контактный телефон</div>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if current_user.role == 'admin' and current_user.id != editing_user.id %}
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-cog"></i> Настройки доступа
+                    </h6>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="role" class="form-label">
+                                <i class="fas fa-user-tag"></i> Роль пользователя
+                            </label>
+                            <div class="role-selector">
+                                <div class="role-options">
+                                    <label class="role-option {{ 'selected' if editing_user.role == 'manager' }}">
+                                        <input type="radio" name="role" value="manager" 
+                                               {{ 'checked' if editing_user.role == 'manager' }}>
+                                        <div class="role-icon">
+                                            <i class="fas fa-user-tie"></i>
+                                        </div>
+                                        <div class="role-info">
+                                            <div class="role-title">Менеджер</div>
+                                            <div class="role-description">
+                                                Управление устройствами и задачами
+                                            </div>
+                                        </div>
+                                    </label>
+                                    
+                                    <label class="role-option {{ 'selected' if editing_user.role == 'admin' }}">
+                                        <input type="radio" name="role" value="admin"
+                                               {{ 'checked' if editing_user.role == 'admin' }}>
+                                        <div class="role-icon">
+                                            <i class="fas fa-crown"></i>
+                                        </div>
+                                        <div class="role-info">
+                                            <div class="role-title">Администратор</div>
+                                            <div class="role-description">
+                                                Полный доступ + управление пользователями
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <div class="settings-options">
+                                <div class="form-checkbox">
+                                    <input type="checkbox" id="is_active" name="is_active" 
+                                           {{ 'checked' if editing_user.is_active }}>
+                                    <label for="is_active" class="checkbox-label">
+                                        <i class="fas fa-user-check"></i>
+                                        Активный пользователь
+                                    </label>
+                                </div>
+                                <div class="form-hint">
+                                    Неактивные пользователи не могут входить в систему
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-key"></i> Изменение пароля
+                    </h6>
+                    
+                    <div class="password-note">
+                        <i class="fas fa-info-circle"></i>
+                        {% if editing_user.id == current_user.id %}
+                        Заполните эти поля только если хотите изменить пароль
+                        {% else %}
+                        Заполните для смены пароля пользователя. Оставьте пустым, если не нужно менять
+                        {% endif %}
+                    </div>
+                    
+                    {% if editing_user.id == current_user.id %}
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="current_password" class="form-label">
+                                <i class="fas fa-lock"></i> Текущий пароль
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="current_password" 
+                                       name="current_password" placeholder="Для смены пароля">
+                                <button type="button" class="password-toggle" data-target="current_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-hint">Требуется для подтверждения смены пароля</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="new_password" class="form-label">
+                                <i class="fas fa-lock"></i> Новый пароль
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="new_password" 
+                                       name="new_password" placeholder="Оставьте пустым">
+                                <button type="button" class="password-toggle" data-target="new_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirm_password" class="form-label">
+                                <i class="fas fa-lock"></i> Подтверждение
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="confirm_password" 
+                                       name="confirm_password" placeholder="Оставьте пустым">
+                                <button type="button" class="password-toggle" data-target="confirm_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new_password" class="form-label">
+                                <i class="fas fa-lock"></i> Новый пароль
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="new_password" 
+                                       name="new_password" placeholder="Оставьте пустым">
+                                <button type="button" class="password-toggle" data-target="new_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="confirm_password" class="form-label">
+                                <i class="fas fa-lock"></i> Подтверждение
+                            </label>
+                            <div class="password-input">
+                                <input type="password" class="form-control" id="confirm_password" 
+                                       name="confirm_password" placeholder="Оставьте пустым">
+                                <button type="button" class="password-toggle" data-target="confirm_password">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if editing_user.id == current_user.id %}
+                    <div class="password-strength" id="passwordStrength">
+                        <div class="strength-meter">
+                            <div class="strength-bar"></div>
+                        </div>
+                        <div class="strength-text">Надежность пароля: <span>—</span></div>
+                    </div>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if current_user.role == 'admin' and current_user.id != editing_user.id %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <div class="d-flex align-center gap-2">
+                <i class="fas fa-info-circle"></i>
+                <h5 class="card-title mb-0">Информация о пользователе</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="user-info-grid">
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-calendar-plus"></i> Дата регистрации
+                    </div>
+                    <div class="info-value">
+                        {{ editing_user.created_at.strftime('%d.%m.%Y') }}
+                    </div>
+                </div>
+                
+                {% if editing_user.creator %}
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-user-plus"></i> Создал
+                    </div>
+                    <div class="info-value">
+                        {{ editing_user.creator.username }}
+                        {% if editing_user.creator.full_name %}
+                        <small>{{ editing_user.creator.full_name }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if editing_user.last_login %}
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-sign-in-alt"></i> Последний вход
+                    </div>
+                    <div class="info-value">
+                        {{ editing_user.last_login.strftime('%d.%m.%Y') }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                <div class="info-item">
+                    <div class="info-label">
+                        <i class="fas fa-history"></i> Обновлен
+                    </div>
+                    <div class="info-value">
+                        {{ editing_user.updated_at.strftime('%d.%m.%Y') }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card danger-zone">
+        <div class="card-header danger-header">
+            <div class="d-flex align-center gap-2">
+                <i class="fas fa-exclamation-triangle"></i>
+                <h5 class="card-title mb-0">Опасная зона</h5>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="danger-content">
+                <div class="danger-icon">
+                    <i class="fas fa-trash"></i>
+                </div>
+                <div class="danger-info">
+                    <h6>Удалить пользователя</h6>
+                    <p class="text-muted">
+                        Все устройства и задачи пользователя будут переданы вам. 
+                        Это действие нельзя отменить.
+                    </p>
+                </div>
+                <div class="danger-action">
+                    <button type="button" class="btn-unified btn-danger" 
+                            onclick="deleteUser({{ editing_user.id }})">
+                        <i class="fas fa-trash"></i> Удалить пользователя
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    .justify-between {
+        justify-content: space-between;
+    }
+    
+    .align-center {
+        align-items: center;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .gap-2 {
+        gap: 10px;
+    }
+    
+    /* Бейджи статуса */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-badge i {
+        font-size: 0.7rem;
+    }
+    
+    .status-active {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    .status-inactive {
+        background: rgba(173, 181, 189, 0.15);
+        color: #adb5bd;
+    }
+    
+    /* Общие стили формы */
+    .user-form {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+    
+    .form-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--light-gray);
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 25px;
+        margin-bottom: 25px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+    }
+    
+    .form-label.disabled {
+        opacity: 0.7;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-sm);
+        font-family: var(--font-family);
+        font-size: 14px;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .form-control.readonly {
+        background: var(--light-gray);
+        color: var(--gray);
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    .form-hint {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-top: 5px;
+        line-height: 1.4;
+    }
+    
+    /* Пароль */
+    .password-note {
+        background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(67, 97, 238, 0.05));
+        border: 1px solid rgba(67, 97, 238, 0.2);
+        border-radius: var(--border-radius-sm);
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+    }
+    
+    .password-input {
+        position: relative;
+    }
+    
+    .password-input .form-control {
+        padding-right: 50px;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--gray);
+        cursor: pointer;
+        padding: 5px;
+        transition: var(--transition);
+    }
+    
+    .password-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    .password-strength {
+        margin-top: 20px;
+    }
+    
+    .strength-meter {
+        height: 8px;
+        background: var(--light-gray);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .strength-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--danger-color);
+        border-radius: 4px;
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+    
+    /* Роли (из add_user) */
+    .role-selector {
+        margin-top: 10px;
+    }
+    
+    .role-options {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+    }
+    
+    .role-option {
+        position: relative;
+        padding: 20px;
+        border: 2px solid var(--border-color);
+        border-radius: var(--border-radius);
+        cursor: pointer;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .role-option:hover {
+        border-color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.05);
+    }
+    
+    .role-option.selected {
+        border-color: var(--primary-color);
+        background: rgba(67, 97, 238, 0.1);
+    }
+    
+    .role-option input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .role-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 15px;
+        font-size: 1.5rem;
+    }
+    
+    .role-option:first-child .role-icon {
+        background: rgba(67, 97, 238, 0.1);
+        color: var(--primary-color);
+    }
+    
+    .role-option:last-child .role-icon {
+        background: rgba(247, 37, 133, 0.1);
+        color: #f72585;
+    }
+    
+    .role-title {
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 5px;
+        font-size: 1.1rem;
+    }
+    
+    .role-description {
+        font-size: 0.85rem;
+        color: var(--gray);
+        line-height: 1.4;
+    }
+    
+    /* Чекбокс */
+    .form-checkbox {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .form-checkbox input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--primary-color);
+    }
+    
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        color: var(--dark-gray);
+        font-weight: 500;
+    }
+    
+    .checkbox-label i {
+        color: var(--primary-color);
+    }
+    
+    /* Информация о пользователе */
+    .user-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 20px;
+    }
+    
+    .info-item {
+        padding: 15px;
+        background: var(--light-gray);
+        border-radius: var(--border-radius-sm);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .info-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.85rem;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+        font-weight: 500;
+    }
+    
+    .info-label i {
+        color: var(--primary-color);
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: var(--dark-color);
+        font-weight: 600;
+    }
+    
+    .info-value small {
+        display: block;
+        font-size: 0.8rem;
+        color: var(--gray);
+        font-weight: normal;
+        margin-top: 3px;
+    }
+    
+    /* Опасная зона */
+    .danger-zone {
+        border: 2px solid var(--danger-color);
+    }
+    
+    .danger-header {
+        background: linear-gradient(135deg, rgba(247, 37, 133, 0.1), rgba(247, 37, 133, 0.05));
+        border-bottom: 2px solid var(--danger-color);
+        color: var(--danger-color);
+    }
+    
+    .danger-content {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 20px;
+    }
+    
+    .danger-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, rgba(247, 37, 133, 0.1), rgba(247, 37, 133, 0.05));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--danger-color);
+        font-size: 1.5rem;
+        flex-shrink: 0;
+    }
+    
+    .danger-info {
+        flex: 1;
+    }
+    
+    .danger-info h6 {
+        color: var(--danger-color);
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    
+    .danger-action {
+        flex-shrink: 0;
+    }
+    
+    .danger-action .btn-unified {
+        min-width: 200px;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 768px) {
+        .form-container {
+            padding: 0 10px;
+        }
+        
+        .form-section {
+            padding: 20px 15px;
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        .role-options {
+            grid-template-columns: 1fr;
+        }
+        
+        .user-info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .danger-content {
+            flex-direction: column;
+            text-align: center;
+            gap: 15px;
+        }
+        
+        .danger-action .btn-unified {
+            width: 100%;
+            min-width: auto;
+        }
+        
+        .card-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .user-status {
+            align-self: flex-start;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .form-section {
+            padding: 15px;
+        }
+        
+        .form-control {
+            padding: 10px 12px;
+        }
+        
+        .page-actions {
+            flex-direction: column;
+        }
+        
+        .page-actions .btn-unified {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.password-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const passwordInput = document.getElementById(targetId);
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+    
+    {% if editing_user.id == current_user.id %}
+    const newPasswordInput = document.getElementById('new_password');
+    const strengthBar = document.querySelector('.strength-bar');
+    const strengthText = document.querySelector('.strength-text span');
+    
+    if (newPasswordInput && strengthBar && strengthText) {
+        newPasswordInput.addEventListener('input', function() {
+            const password = this.value;
+            if (!password) {
+                strengthBar.style.width = '0%';
+                strengthText.textContent = '—';
+                return;
+            }
+            
+            let strength = 0;
+            let text = '—';
+            let color = '#f72585'; // Красный
+            
+            if (password.length >= 8) strength += 25;
+            if (/[A-Z]/.test(password)) strength += 25;
+            if (/[0-9]/.test(password)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+            
+            strength = Math.min(strength, 100);
+            
+            if (strength >= 75) {
+                text = 'Отличный';
+                color = '#4cc9f0'; // Синий
+            } else if (strength >= 50) {
+                text = 'Хороший';
+                color = '#f8961e'; // Оранжевый
+            } else if (strength >= 25) {
+                text = 'Слабый';
+                color = '#f72585'; // Розовый
+            } else if (password.length > 0) {
+                text = 'Очень слабый';
+                color = '#f72585'; // Розовый
+            }
+            
+            strengthBar.style.width = `${strength}%`;
+            strengthBar.style.backgroundColor = color;
+            strengthText.textContent = text;
+            strengthText.style.color = color;
+        });
+    }
+    {% endif %}
+    
+    const newPassword = document.getElementById('new_password');
+    const confirmPassword = document.getElementById('confirm_password');
+    
+    if (newPassword && confirmPassword) {
+        function checkPasswords() {
+            const newPass = newPassword.value;
+            const confirmPass = confirmPassword.value;
+            
+            if (newPass && confirmPass) {
+                if (newPass === confirmPass) {
+                    confirmPassword.style.borderColor = '#4cc9f0';
+                    confirmPassword.style.boxShadow = '0 0 0 3px rgba(76, 201, 240, 0.1)';
+                } else {
+                    confirmPassword.style.borderColor = '#f72585';
+                    confirmPassword.style.boxShadow = '0 0 0 3px rgba(247, 37, 133, 0.1)';
+                }
+            } else {
+                confirmPassword.style.borderColor = '';
+                confirmPassword.style.boxShadow = '';
+            }
+        }
+        
+        newPassword.addEventListener('input', checkPasswords);
+        confirmPassword.addEventListener('input', checkPasswords);
+    }
+    
+    const roleOptions = document.querySelectorAll('.role-option');
+    if (roleOptions.length > 0) {
+        roleOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                roleOptions.forEach(opt => {
+                    opt.classList.remove('selected');
+                    const radio = opt.querySelector('input[type="radio"]');
+                    radio.checked = false;
+                });
+                
+                this.classList.add('selected');
+                const radio = this.querySelector('input[type="radio"]');
+                radio.checked = true;
+            });
+        });
+    }
+    
+    const form = document.getElementById('editUserForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const newPass = newPassword ? newPassword.value : '';
+            const confirmPass = confirmPassword ? confirmPassword.value : '';
+            
+            {% if editing_user.id == current_user.id %}
+            if (newPass) {
+                const currentPassword = document.getElementById('current_password');
+                if (!currentPassword.value) {
+                    e.preventDefault();
+                    alert('Для смены пароля необходимо ввести текущий пароль');
+                    currentPassword.focus();
+                    return false;
+                }
+                
+                if (newPass !== confirmPass) {
+                    e.preventDefault();
+                    alert('Новые пароли не совпадают');
+                    confirmPassword.focus();
+                    return false;
+                }
+                
+                if (newPass.length < 8) {
+                    e.preventDefault();
+                    alert('Пароль должен содержать минимум 8 символов');
+                    newPassword.focus();
+                    return false;
+                }
+            }
+            {% else %}
+            if (newPass) {
+                if (newPass !== confirmPass) {
+                    e.preventDefault();
+                    alert('Пароли не совпадают');
+                    confirmPassword.focus();
+                    return false;
+                }
+                
+                if (newPass.length < 8) {
+                    e.preventDefault();
+                    alert('Пароль должен содержать минимум 8 символов');
+                    newPassword.focus();
+                    return false;
+                }
+            }
+            {% endif %}
+            
+            {% if current_user.role == 'admin' and current_user.id != editing_user.id %}
+            const selectedRole = document.querySelector('input[name="role"]:checked').value;
+            const originalRole = '{{ editing_user.role }}';
+            
+            if (selectedRole === 'admin' && originalRole !== 'admin') {
+                if (!confirm('⚠️ Вы назначаете пользователя администратором.\n\nАдминистраторы имеют полный доступ ко всем функциям системы.\n\nПродолжить?')) {
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            {% endif %}
+            
+            if (!confirm('Сохранить изменения?')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+});
+
+function deleteUser(userId) {
+    if (confirm('❌ ВНИМАНИЕ! Вы действительно хотите удалить этого пользователя?\n\n' +
+               '• Все устройства и задачи пользователя будут переданы вам\n' +
+               '• Все связанные логи будут сохранены\n' +
+               '• Это действие нельзя отменить\n\n' +
+               'Продолжить?')) {
+        fetch(`/users/${userId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Пользователь успешно удален!', 'success');
+                setTimeout(() => {
+                    window.location.href = '/users';
+                }, 1000);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const mainContent = document.querySelector('.main-content');
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        mainContent.insertBefore(newContainer, mainContent.firstChild);
+        newContainer.appendChild(notification);
+    } else {
+        container.appendChild(notification);
+    }
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        this.parentElement.style.opacity = '0';
+        setTimeout(() => {
+            this.parentElement.remove();
+        }, 300);
+    });
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

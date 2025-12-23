@@ -1,0 +1,1142 @@
+{% extends "base.html" %}
+
+{% block title %}Детали задачи: {{ task.name }} - MikroTik Manager{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-info-circle"></i> Детали задачи: {{ task.name }}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('tasks') }}" class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к списку
+        </a>
+        <button class="btn-unified btn-primary" onclick="runTaskNow({{ task.id }})">
+            <i class="fas fa-play"></i> Запустить сейчас
+        </button>
+        <button class="btn-unified btn-{{ 'warning' if task.is_active else 'success' }}" 
+                onclick="toggleTaskStatus({{ task.id }}, {{ task.is_active|lower }})">
+            <i class="fas fa-toggle-{{ 'on' if task.is_active else 'off' }}"></i>
+            {{ 'Деактивировать' if task.is_active else 'Активировать' }}
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="task-details-container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon info">
+                <i class="fas fa-hashtag"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ task.id }}</h3>
+                <p>ID задачи</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon {{ 'online' if task.is_active else 'offline' }}">
+                <i class="fas fa-toggle-{{ 'on' if task.is_active else 'off' }}"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ 'Активна' if task.is_active else 'Неактивна' }}</h3>
+                <p>Статус</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon calendar">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>
+                    {% if task.last_run %}
+                    {{ task.last_run.strftime('%d.%m') }}
+                    {% else %}
+                    Нет
+                    {% endif %}
+                </h3>
+                <p>Последний запуск</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle"></i> Основная информация
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-tag"></i> Название:
+                            </div>
+                            <div class="info-value">
+                                <strong>{{ task.name }}</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-tasks"></i> Тип задачи:
+                            </div>
+                            <div class="info-value">
+                                <span class="badge badge-{{ 
+                                    'info' if task.task_type == 'check_update' 
+                                    else 'warning' if task.task_type == 'perform_update' 
+                                    else 'primary' 
+                                }}">
+                                    {% if task.task_type == 'check_update' %}
+                                        <i class="fas fa-sync-alt"></i> Проверка обновлений
+                                    {% elif task.task_type == 'perform_update' %}
+                                        <i class="fas fa-rocket"></i> Выполнение обновления
+                                    {% else %}
+                                        <i class="fas fa-terminal"></i> Пользовательская команда
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-calendar-plus"></i> Создана:
+                            </div>
+                            <div class="info-value">
+                                <div class="datetime">
+                                    <i class="fas fa-calendar-day"></i> {{ task.created_at.strftime('%d.%m.%Y') }}
+                                    <i class="fas fa-clock"></i> {{ task.created_at.strftime('%H:%M') }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-user"></i> Создатель:
+                            </div>
+                            <div class="info-value">
+                                {% if task.created_by_user %}
+                                <div class="user-info">
+                                    <i class="fas fa-user-circle"></i>
+                                    {{ task.created_by_user.username }}
+                                    {% if task.created_by_user.role == 'admin' %}
+                                    <span class="role-badge">Админ</span>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <span class="text-muted">Неизвестно</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if task.command %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-terminal"></i> Команда
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Команда RouterOS</span>
+                            <button class="btn-unified btn-outline btn-sm" onclick="copyToClipboard('{{ task.command|e }}')">
+                                <i class="fas fa-copy"></i> Копировать
+                            </button>
+                        </div>
+                        <pre><code>{{ task.command }}</code></pre>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-calendar-alt"></i> Расписание
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-clock"></i> Cron-выражение:
+                            </div>
+                            <div class="info-value">
+                                <div class="cron-display">
+                                    <code class="cron-code">{{ task.cron_expression }}</code>
+                                    <div class="cron-human" id="humanCron">
+                                        <i class="fas fa-info-circle"></i>
+                                        <span>Расчет...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="info-item">
+                            <div class="info-label">
+                                <i class="fas fa-history"></i> Последний запуск:
+                            </div>
+                            <div class="info-value">
+                                {% if task.last_run %}
+                                <div class="last-run-info">
+                                    <div class="datetime">
+                                        <i class="fas fa-calendar-day"></i> {{ task.last_run.strftime('%d.%m.%Y') }}
+                                        <i class="fas fa-clock"></i> {{ task.last_run.strftime('%H:%M') }}
+                                    </div>
+                                </div>
+                                {% else %}
+                                <span class="text-muted">
+                                    <i class="fas fa-history"></i> Никогда не запускалась
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <div class="d-flex justify-between align-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-server"></i> Устройства
+                        </h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if devices %}
+                    <div class="devices-list">
+                        {% for device in devices %}
+                        <div class="device-item">
+                            <div class="device-header">
+                                <div class="device-name">
+                                    <i class="fas fa-server"></i>
+                                    <strong>{{ device.name }}</strong>
+                                </div>
+                               <div class="device-status-badge">
+                                    <span class="device-status {{ device.status }}">
+                                        <i class="fas fa-circle"></i>
+                                        {{ 'Онлайн' if device.status == 'online' else 'Офлайн' if device.status == 'offline' else 'Неизвестно' }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="device-details">
+                                <div class="device-ip">
+                                    <i class="fas fa-network-wired"></i>
+                                    {{ device.ip_address }}:{{ device.port }}
+                                </div>
+                                
+                                {% if device.firmware_version %}
+                                <div class="device-version">
+                                    <i class="fas fa-code-branch"></i>
+                                    RouterOS {{ device.firmware_version }}
+                                </div>
+                                {% endif %}
+                                
+                                {% if device.description %}
+                                <div class="device-description">
+                                    <i class="fas fa-sticky-note"></i>
+                                    {{ device.description|truncate(50) }}
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="device-actions">
+                                <a href="{{ url_for('get_device_system_info', device_id=device.id) }}" 
+                                   class="btn-unified btn-info btn-sm"
+                                   title="Информация о системе">
+                                    <i class="fas fa-info-circle"></i>
+                                </a>
+                                <a href="{{ url_for('test_device_connection', device_id=device.id) }}" 
+                                   class="btn-unified btn-outline btn-sm"
+                                   title="Тест подключения">
+                                    <i class="fas fa-network-wired"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="empty-state">
+                        <div class="empty-icon">
+                            <i class="fas fa-server fa-3x"></i>
+                        </div>
+                        <h6>Нет назначенных устройств</h6>
+                        <p>Эта задача не назначена ни на одно устройство</p>
+                        <a href="{{ url_for('devices') }}" class="btn-unified btn-outline btn-sm">
+                            <i class="fas fa-plus"></i> Добавить устройства
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if task.last_result %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <div class="d-flex justify-between align-center">
+                        <h5 class="card-title">
+                            <i class="fas fa-clipboard-check"></i> Результат последнего выполнения
+                        </h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="code-block">
+                        <div class="code-header">
+                            <span>Данные выполнения</span>
+                            <button class="btn-unified btn-outline btn-sm" onclick="copyToClipboard('{{ task.last_result|e }}')">
+                                <i class="fas fa-copy"></i> Копировать
+                            </button>
+                        </div>
+                        <div class="result-content" id="resultContent">
+                            {% if task.last_result is string and (task.last_result.startswith('[') or task.last_result.startswith('{')) %}
+                                <pre><code id="lastResult">{{ task.last_result }}</code></pre>
+                            {% else %}
+                                <div class="result-text">{{ task.last_result }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.task-details-container {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Статистика */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 25px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: white;
+}
+
+.stat-icon.info { background: linear-gradient(135deg, #7209b7, #560bad); }
+.stat-icon.online { background: linear-gradient(135deg, #4cc9f0, #4895ef); }
+.stat-icon.offline { background: linear-gradient(135deg, #f8961e, #f3722c); }
+.stat-icon.devices { background: linear-gradient(135deg, #4361ee, #3a56d4); }
+.stat-icon.calendar { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+
+.stat-info h3 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--dark-color);
+}
+
+.stat-info p {
+    margin: 0;
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* Сетка */
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin: 0 -15px;
+}
+
+.col-lg-6 {
+    padding: 0 15px;
+    flex: 1 0 0;
+    min-width: 0;
+}
+
+.col-lg-6:first-child {
+    flex: 0 0 calc(50% - 30px);
+    max-width: calc(50% - 30px);
+}
+
+.col-lg-6:last-child {
+    flex: 0 0 calc(50% - 30px);
+    max-width: calc(50% - 30px);
+}
+
+/* Карточки */
+.card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    padding: 25px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+    height: fit-content;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.card-title {
+    margin: 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--dark-color);
+}
+
+/* Информационная сетка */
+.info-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.info-label {
+    flex: 0 0 150px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    color: var(--dark-gray);
+    font-size: 0.95rem;
+}
+
+.info-label i {
+    width: 20px;
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.info-value {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.datetime {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 0.9rem;
+}
+
+.datetime i {
+    color: var(--gray);
+    margin-right: 5px;
+}
+
+/* Бейджи */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.badge-info {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.badge-warning {
+    background: rgba(248, 150, 30, 0.15);
+    color: #f8961e;
+}
+
+.badge-primary {
+    background: rgba(67, 97, 238, 0.15);
+    color: #4361ee;
+}
+
+/* Информация о пользователе */
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.role-badge {
+    background: rgba(247, 37, 133, 0.15);
+    color: #f72585;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* Cron-выражение */
+.cron-display {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.cron-code {
+    font-family: 'Courier New', monospace;
+    background: var(--light-gray);
+    padding: 10px 15px;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.95rem;
+    border: 1px solid var(--border-color);
+}
+
+.cron-human {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+    line-height: 1.5;
+    padding: 12px 15px;
+    background: linear-gradient(135deg, rgba(76, 201, 240, 0.1), rgba(76, 201, 240, 0.05));
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    border-radius: var(--border-radius-sm);
+    margin-top: 5px;
+}
+
+.cron-human i {
+    color: #4cc9f0;
+    margin-top: 2px;
+}
+
+/* Блоки кода */
+.code-block {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.code-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: var(--light-gray);
+    border-bottom: 1px solid var(--border-color);
+    font-weight: 500;
+    color: var(--dark-gray);
+    font-size: 0.9rem;
+}
+
+.code-header .btn-unified {
+    padding: 5px 12px;
+    font-size: 0.85rem;
+}
+
+pre {
+    margin: 0;
+    padding: 20px;
+    background: #f8f9fa;
+    overflow-x: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+code {
+    font-family: 'Courier New', monospace;
+    color: var(--dark-color);
+    white-space: pre-wrap;
+}
+
+.result-text {
+    padding: 20px;
+    background: #f8f9fa;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    max-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+}
+
+/* Результат */
+.result-content {
+    max-height: 300px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.result-content.expanded {
+    max-height: 600px;
+}
+
+/* Список устройств */
+.device-count {
+    font-weight: 600;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 1.1rem;
+}
+
+.devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-height: 500px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.device-item {
+    background: var(--light-gray);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    transition: var(--transition);
+}
+
+.device-item:hover {
+    background: #e2e6ea;
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.device-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.device-name {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+}
+
+.device-name i {
+    color: var(--primary-color);
+}
+
+.device-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.device-status i {
+    font-size: 0.7rem;
+}
+
+.device-status.online {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.device-status.online i {
+    color: #4cc9f0;
+}
+
+.device-status.offline {
+    background: rgba(247, 37, 133, 0.15);
+    color: #f72585;
+}
+
+.device-status.offline i {
+    color: #f72585;
+}
+
+.device-status.unknown {
+    background: rgba(173, 181, 189, 0.15);
+    color: #adb5bd;
+}
+
+.device-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 15px;
+}
+
+.device-ip, .device-version, .device-description {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    color: var(--dark-gray);
+}
+
+.device-ip i, .device-version i, .device-description i {
+    width: 16px;
+    color: var(--gray);
+}
+
+.device-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.device-actions .btn-unified {
+    padding: 6px 12px;
+    font-size: 0.85rem;
+}
+
+/* Пустое состояние */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray);
+}
+
+.empty-icon {
+    margin-bottom: 15px;
+    opacity: 0.3;
+}
+
+.empty-state h6 {
+    margin-bottom: 10px;
+    color: var(--dark-gray);
+    font-size: 1.1rem;
+}
+
+.empty-state p {
+    margin: 0 0 20px 0;
+    max-width: 300px;
+    margin: 0 auto 20px auto;
+    line-height: 1.5;
+}
+
+/* Утилитные классы */
+.justify-between {
+    justify-content: space-between;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.text-muted {
+    color: var(--gray) !important;
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .col-lg-6:first-child,
+    .col-lg-6:last-child {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+    
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .page-actions {
+        flex-direction: column;
+        gap: 10px;
+        align-items: stretch;
+    }
+    
+    .page-actions .btn-unified {
+        width: 100%;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .info-label {
+        flex: none;
+        width: 100%;
+    }
+    
+    .device-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .device-details {
+        flex-direction: column;
+    }
+    
+    .device-actions {
+        flex-direction: column;
+    }
+    
+    .device-actions .btn-unified {
+        width: 100%;
+    }
+    
+    .code-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start;
+    }
+    
+    .code-header .btn-unified {
+        width: 100%;
+    }
+}
+
+@media (max-width: 576px) {
+    .card {
+        padding: 20px 15px;
+    }
+    
+    .stat-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .stat-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 1.75rem;
+    }
+    
+    .stat-info h3 {
+        font-size: 1.5rem;
+    }
+    
+    .datetime {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function formatCronExpression(cron) {
+    if (!cron) return 'По запросу';
+    
+    const parts = cron.split(' ');
+    if (parts.length !== 5) return cron;
+    
+    const [minute, hour, day, month, weekday] = parts;
+    let result = '';
+    
+    // Минуты
+    if (minute === '*') {
+        result += 'Каждую минуту';
+    } else if (minute.includes('/')) {
+        const interval = minute.split('/')[1];
+        result += `Каждые ${interval} минут`;
+    } else if (minute !== '*') {
+        result += `В ${minute} минут`;
+    }
+    
+    // Часы
+    if (hour === '*') {
+        if (result) result += ' каждого часа';
+    } else if (hour.includes('/')) {
+        const interval = hour.split('/')[1];
+        result = `Каждые ${interval} часов`;
+    } else if (hour !== '*') {
+        if (result) {
+            result += ` ${hour} часа`;
+        } else {
+            result += `В ${hour} часов`;
+        }
+    }
+    
+    // День месяца
+    if (day !== '*') {
+        result += ` ${day} числа`;
+    }
+    
+    // Месяц
+    if (month !== '*') {
+        const months = ['', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 
+                       'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+        if (month.includes('-')) {
+            const range = month.split('-');
+            result += ` с ${months[range[0]]} по ${months[range[1]]}`;
+        } else {
+            result += ` ${months[parseInt(month)]}`;
+        }
+    }
+    
+    // День недели
+    if (weekday !== '*') {
+        const days = ['воскресенье', 'понедельник', 'вторник', 'среду', 'четверг', 'пятницу', 'субботу'];
+        if (result.includes('Каждые')) {
+            if (weekday.includes(',')) {
+                const selectedDays = weekday.split(',').map(d => days[d]);
+                result += ` по ${selectedDays.join(', ')}`;
+            } else {
+                result += ` по ${days[weekday]}`;
+            }
+        } else {
+            result += ` по ${days[weekday]}`;
+        }
+    }
+    
+    // Если результат пустой (все значения "*")
+    if (!result) {
+        return 'Каждую минуту';
+    }
+    
+    result = result.replace('0 0', 'В полночь');
+    result = result.replace('0 */1 * * *', 'Каждый час');
+    result = result.replace('0 0 * * *', 'Ежедневно в полночь');
+    result = result.replace('0 0 * * 0', 'Еженедельно в воскресенье');
+    result = result.replace('0 0 1 * *', 'Ежемесячно 1 числа');
+    
+    return result;
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(function() {
+        showNotification('Текст скопирован в буфер обмена', 'success');
+    }, function(err) {
+        console.error('Ошибка при копировании: ', err);
+        showNotification('Ошибка при копировании', 'error');
+    });
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        document.querySelector('.main-content').insertBefore(newContainer, document.querySelector('.page-content'));
+    }
+    
+    document.querySelector('.flash-container').appendChild(notification);
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 3000);
+    }
+}
+
+function runTaskNow(taskId) {
+    if (confirm('Запустить задачу сейчас?')) {
+        fetch(`/tasks/${taskId}/run-now`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Задача запущена!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function toggleTaskStatus(taskId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const actionText = isActive ? 'деактивирована' : 'активирована';
+    
+    if (confirm(`${isActive ? 'Деактивировать' : 'Активировать'} задачу?`)) {
+        fetch(`/tasks/${taskId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`Задача ${actionText}!`, 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function toggleResultExpand() {
+    const content = document.getElementById('resultContent');
+    const button = event.currentTarget;
+    
+    if (content.classList.contains('expanded')) {
+        content.classList.remove('expanded');
+        button.innerHTML = '<i class="fas fa-expand-alt"></i> Развернуть';
+    } else {
+        content.classList.add('expanded');
+        button.innerHTML = '<i class="fas fa-compress-alt"></i> Свернуть';
+    }
+}
+
+function formatJSON(elementId) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+    
+    try {
+        const json = JSON.parse(element.textContent);
+        element.textContent = JSON.stringify(json, null, 2);
+    } catch (e) {
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const cronElement = document.querySelector('.cron-code');
+    if (cronElement) {
+        const cron = cronElement.textContent.trim();
+        if (cron) {
+            const humanReadable = formatCronExpression(cron);
+            const humanDiv = document.getElementById('humanCron');
+            if (humanDiv) {
+                humanDiv.innerHTML = `<i class="fas fa-info-circle"></i> <span>${humanReadable}</span>`;
+            }
+        }
+    }
+    
+    formatJSON('lastResult');
+    
+    const statCards = document.querySelectorAll('.stat-card');
+    const contentCards = document.querySelectorAll('.card');
+    
+    statCards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in-up');
+    });
+    
+    setTimeout(() => {
+        contentCards.forEach((card, index) => {
+            card.style.animationDelay = `${0.5 + index * 0.1}s`;
+            card.classList.add('fade-in-up');
+        });
+    }, 300);
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

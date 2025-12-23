@@ -1,0 +1,993 @@
+
+{% extends "base.html" %}
+
+{% block title %}Планировщик задач - MikroTik Manager{% endblock %}
+
+{% block content %}
+<div class="tasks-dashboard">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon tasks">
+                <i class="fas fa-tasks"></i>
+            </div>
+            <div class="stat-info">
+                <h3>{{ tasks|length }}</h3>
+                <p>Всего задач</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon online">
+                <i class="fas fa-toggle-on"></i>
+            </div>
+            <div class="stat-info">
+                <h3>
+                    {% set active_count = 0 %}
+                    {% for task in tasks %}
+                        {% if task.is_active %}
+                            {% set active_count = active_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ active_count }}
+                </h3>
+                <p>Активных задач</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon updates">
+                <i class="fas fa-sync-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>
+                    {% set check_update_count = 0 %}
+                    {% for task in tasks %}
+                        {% if task.task_type == 'check_update' %}
+                            {% set check_update_count = check_update_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ check_update_count }}
+                </h3>
+                <p>Проверок</p>
+            </div>
+        </div>
+        
+        <div class="stat-card">
+            <div class="stat-icon devices">
+                <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stat-info">
+                <h3>
+                    {% set update_count = 0 %}
+                    {% for task in tasks %}
+                        {% if task.task_type == 'perform_update' %}
+                            {% set update_count = update_count + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    {{ update_count }}
+                </h3>
+                <p>Задач обновления</p>
+            </div>
+        </div>
+    </div>
+
+	<div class="d-flex justify-content-end mb-3" style="justify-content: flex-end !important;">
+		<div class="action-buttons">
+			<a href="{{ url_for('add_task') }}" class="btn btn-primary">
+				<i class="fas fa-plus-circle"></i> Создать задачу
+			</a>
+			<button class="btn btn-success" onclick="toggleActiveTasks()">
+				<i class="fas fa-toggle-on"></i> Активные задачи
+			</button>
+			<button class="btn btn-outline" onclick="toggleAllTasks()">
+				<i class="fas fa-list"></i> Все задачи
+			</button>
+		</div>
+	</div>
+
+    <div class="card tasks-card">
+        <div class="card-header">
+            <div class="d-flex justify-between align-center">
+                <h5 class="card-title">
+                    <i class="fas fa-list"></i> Список задач
+                </h5>
+                <span class="task-count">{{ tasks|length }} задач</span>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if tasks %}
+            <div class="table-container">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Тип задачи</th>
+                            <th>Устройства</th>
+                            <th>Расписание</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in tasks %}
+                        <tr class="task-row" data-active="{{ task.is_active|lower }}">
+                            <td>
+                                <div class="task-name">
+                                    <strong>{{ task.name }}</strong>
+                                    {% if task.command %}
+                                    <div class="task-command">
+                                        <code>{{ task.command|truncate(30) }}</code>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="task-type-badge task-type-{{ task.task_type }}">
+                                    {% if task.task_type == 'check_update' %}
+                                        <i class="fas fa-sync-alt"></i> Проверка
+                                    {% elif task.task_type == 'perform_update' %}
+                                        <i class="fas fa-rocket"></i> Обновление
+                                    {% else %}
+                                        <i class="fas fa-terminal"></i> Команда
+                                    {% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="device-count">
+                                    <i class="fas fa-server"></i>
+                                    <span>{{ task.get_device_ids()|length }}</span>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="cron-expression">
+                                    {% if task.cron_expression %}
+                                    <code title="{{ task.cron_expression }}">{{ task.cron_expression }}</code>
+                                    {% else %}
+                                    <span class="text-muted">По запросу</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="task-status {{ 'online' if task.is_active else 'offline' }}">
+                                    <i class="fas fa-circle"></i>
+                                    {{ 'Активна' if task.is_active else 'Неактивна' }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="task-actions">
+                                    <button class="btn btn-sm btn-outline" 
+                                            onclick="runTaskNow({{ task.id }})"
+                                            title="Запустить сейчас">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-{{ 'warning' if task.is_active else 'success' }}" 
+                                            onclick="toggleTaskStatus({{ task.id }}, {{ task.is_active|lower }})"
+                                            title="{{ 'Деактивировать' if task.is_active else 'Активировать' }}">
+                                        <i class="fas fa-toggle-{{ 'on' if task.is_active else 'off' }}"></i>
+                                    </button>
+                                    <a href="{{ url_for('task_details', task_id=task.id) }}" 
+                                       class="btn btn-sm btn-outline"
+                                       title="Детали">
+                                        <i class="fas fa-info-circle"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline btn-danger" 
+                                            onclick="deleteTask({{ task.id }})"
+                                            title="Удалить">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <i class="fas fa-tasks fa-3x"></i>
+                <h6>Задачи не найдены</h6>
+                <p>Создайте свою первую задачу для автоматизации</p>
+                <a href="{{ url_for('add_task') }}" class="btn-unified btn-primary">
+                    Создать задачу
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Основной контейнер */
+.tasks-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 15px;
+    min-height: calc(100vh - 200px);
+}
+
+/* Сетка статистики - ТАК ЖЕ КАК НА DASHBOARD */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+    animation: fadeInUp 0.5s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+    min-height: 80px;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    border-color: #dee2e6;
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.stat-icon.tasks {
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+}
+
+.stat-icon.online {
+    background: linear-gradient(135deg, #4361ee, #3a56d4);
+}
+
+.stat-icon.updates {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+}
+
+.stat-icon.devices {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.stat-info h3 {
+    margin: 0 0 4px 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #2d3748;
+    line-height: 1;
+}
+
+.stat-info p {
+    margin: 0;
+    font-size: 13px;
+    color: #718096;
+    font-weight: 500;
+}
+
+/* Карточка списка задач */
+.tasks-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    border: 1px solid #e9ecef;
+    overflow: hidden;
+    animation: scaleIn 0.6s ease forwards;
+    opacity: 0;
+    transform: scale(0.95);
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e9ecef;
+    background: white;
+}
+
+.card-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: #2d3748;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-title i {
+    color: #4361ee;
+}
+
+.card-body {
+    padding: 20px;
+    flex: 1;
+    overflow-x: auto;
+}
+
+.d-flex {
+    display: flex;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.align-center {
+    align-items: center;
+}
+
+.task-count {
+    font-size: 12px;
+    color: #718096;
+    background: #f8f9fa;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+/* Таблица */
+.table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+}
+
+.table thead {
+    background: #f8f9fa;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.table th {
+    padding: 14px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #495057;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.table tbody tr {
+    border-bottom: 1px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+.table td {
+    padding: 14px 12px;
+    vertical-align: middle;
+}
+
+/* Стили для элементов таблицы */
+.task-name {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 150px;
+}
+
+.task-name strong {
+    font-size: 14px;
+    color: #2d3748;
+    font-weight: 600;
+}
+
+.task-command code {
+    background: #f1f3f5;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: #495057;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+/* Бейджи типов задач */
+.task-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.task-type-check_update {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+}
+
+.task-type-perform_update {
+    background: rgba(241, 196, 15, 0.15);
+    color: #f1c40f;
+}
+
+.task-type-command {
+    background: rgba(155, 89, 182, 0.15);
+    color: #9b59b6;
+}
+
+.device-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.device-count i {
+    color: #4361ee;
+}
+
+.cron-expression code {
+    background: #f1f3f5;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: #495057;
+    cursor: help;
+}
+
+.text-muted {
+    color: #adb5bd;
+    font-style: italic;
+    font-size: 12px;
+}
+
+/* Статус задачи */
+.task-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.task-status i {
+    font-size: 8px;
+}
+
+.task-status.online {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.task-status.online i {
+    color: #4cc9f0;
+    animation: pulse 2s infinite;
+}
+
+.task-status.offline {
+    background: rgba(247, 37, 133, 0.15);
+    color: #f72585;
+}
+
+.task-status.offline i {
+    color: #f72585;
+}
+
+/* Действия с задачами */
+.task-actions {
+    display: flex;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.task-actions .btn-sm {
+    padding: 6px 10px;
+    font-size: 12px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+}
+
+.task-actions .btn-sm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+.btn-outline {
+    background: white;
+    border: 1px solid #4361ee;
+    color: #4361ee;
+}
+
+.btn-outline:hover {
+    background: #4361ee;
+    color: white;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+    border: none;
+    color: white;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    border: none;
+    color: white;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    border: none;
+    color: white;
+}
+
+/* Пустое состояние */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #adb5bd;
+    animation: fadeIn 0.8s ease forwards;
+    min-height: 200px;
+}
+
+.empty-state i {
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+.empty-state h6 {
+    margin-bottom: 10px;
+    color: #718096;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.empty-state p {
+    margin-bottom: 20px;
+    max-width: 400px;
+    color: #adb5bd;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.empty-state .btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    text-decoration: none;
+}
+
+.empty-state .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Кнопки страницы */
+.page-actions {
+    margin-bottom: 20px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+    padding: 12px 18px;
+    font-weight: 600;
+    border-radius: 8px;
+    font-size: 14px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    color: white;
+    min-width: 140px;
+}
+
+.action-buttons .btn-primary {
+    background: linear-gradient(135deg, #4361ee, #3a56d4);
+}
+
+.action-buttons .btn-primary:hover {
+    background: linear-gradient(135deg, #3a56d4, #4361ee);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(67, 97, 238, 0.3);
+}
+
+.action-buttons .btn-success {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.action-buttons .btn-success:hover {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(39, 174, 96, 0.3);
+}
+
+.action-buttons .btn-outline {
+    background: white;
+    border: 2px solid #4361ee;
+    color: #4361ee;
+}
+
+.action-buttons .btn-outline:hover {
+    background: #4361ee;
+    color: white;
+}
+
+/* Анимационные задершки как на дашборде */
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+
+.tasks-card { animation-delay: 0.5s; }
+
+.task-row {
+    animation: slideInLeft 0.4s ease forwards;
+    opacity: 0;
+    transform: translateX(-20px);
+}
+
+.task-row:nth-child(1) { animation-delay: 0.6s; }
+.task-row:nth-child(2) { animation-delay: 0.65s; }
+.task-row:nth-child(3) { animation-delay: 0.7s; }
+.task-row:nth-child(4) { animation-delay: 0.75s; }
+.task-row:nth-child(5) { animation-delay: 0.8s; }
+.task-row:nth-child(6) { animation-delay: 0.85s; }
+
+/* Анимации как на дашборде */
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes scaleIn {
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideInLeft {
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* Адаптивность */
+@media (max-width: 1200px) {
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .tasks-dashboard {
+        padding: 12px;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        min-width: unset;
+    }
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+        min-height: 70px;
+    }
+    
+    .stat-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 18px;
+    }
+    
+    .stat-info h3 {
+        font-size: 20px;
+    }
+    
+    .card-header,
+    .card-body {
+        padding: 15px;
+    }
+    
+    .table th,
+    .table td {
+        padding: 12px 8px;
+        font-size: 13px;
+    }
+    
+    .task-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .stat-info h3 {
+        font-size: 18px;
+    }
+    
+    .stat-info p {
+        font-size: 12px;
+    }
+    
+    .empty-state {
+        padding: 30px 15px;
+        min-height: 180px;
+    }
+    
+    .empty-state i {
+        font-size: 32px;
+    }
+    
+    .empty-state h6 {
+        font-size: 14px;
+    }
+    
+    .empty-state p {
+        font-size: 13px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Tasks dashboard loaded');
+    
+    toggleActiveTasks();
+    
+    document.querySelectorAll('.action-buttons .btn, .task-actions .btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.cssText = `
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.7);
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                width: ${size}px;
+                height: ${size}px;
+                top: ${y}px;
+                left: ${x}px;
+                pointer-events: none;
+                z-index: 1;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    document.querySelectorAll('.task-status.online i').forEach(el => {
+        el.style.animation = 'pulse 2s infinite';
+    });
+    
+    document.querySelectorAll('.stat-card').forEach(card => {
+        const icon = card.querySelector('.stat-icon');
+        
+        card.addEventListener('mouseenter', function() {
+            icon.style.transform = 'rotate(10deg) scale(1.1)';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            icon.style.transform = 'rotate(0) scale(1)';
+        });
+    });
+});
+
+function toggleActiveTasks() {
+    const rows = document.querySelectorAll('.task-row');
+    rows.forEach(row => {
+        if (row.getAttribute('data-active') === 'false') {
+            row.style.display = 'none';
+        } else {
+            row.style.display = '';
+        }
+    });
+}
+
+function toggleAllTasks() {
+    document.querySelectorAll('.task-row').forEach(row => {
+        row.style.display = '';
+    });
+}
+
+function runTaskNow(taskId) {
+    if (confirm('Запустить задачу сейчас?')) {
+        fetch(`/tasks/${taskId}/run-now`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Задача запущена!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function toggleTaskStatus(taskId, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const actionText = isActive ? 'деактивирована' : 'активирована';
+    
+    if (confirm(`${isActive ? 'Деактивировать' : 'Активировать'} задачу?`)) {
+        fetch(`/tasks/${taskId}/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(`Задача ${actionText}!`, 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function deleteTask(taskId) {
+    if (confirm('Удалить задачу? Это действие нельзя отменить.')) {
+        fetch(`/tasks/${taskId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Задача удалена!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1500);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        document.querySelector('.main-content').insertBefore(newContainer, document.querySelector('.page-content'));
+    }
+    
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    document.querySelector('.flash-container').appendChild(notification);
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        notification.style.opacity = '0';
+        setTimeout(() => notification.remove(), 300);
+    });
+    
+    if (type !== 'error') {
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.opacity = '0';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 5000);
+    }
+}
+</script>
+{% endblock %}
+[file content end]

@@ -1,0 +1,720 @@
+{% extends "base.html" %}
+
+{% block title %}Устройства - MikroTik Manager{% endblock %}
+
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('add_device') }}" class="btn-unified btn-primary">
+            Добавить устройство
+        </a>
+        {% set update_count = devices|selectattr('needs_update')|list|length %}
+        {% if update_count > 0 %}
+        <a href="{{ url_for('batch_update') }}" class="btn-unified btn-warning">
+            <i class="fas fa-rocket"></i> Обновить все ({{ update_count }})
+        </a>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-between align-center">
+            <div class="stats-info">
+                {% set update_count = devices|selectattr('needs_update')|list|length %}
+                {% set online_count = devices|selectattr('status', 'equalto', 'online')|list|length %}
+                {% if update_count > 0 %}
+                <span class="badge badge-warning">
+                    <i class="fas fa-exclamation-circle"></i> {{ update_count }} требуют обновления
+                </span>
+                {% endif %}
+                <span class="badge badge-success ml-2">
+                    <i class="fas fa-wifi"></i> {{ online_count }} онлайн
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        {% if devices %}
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Имя</th>
+                        <th>IP адрес</th>
+                        <th>Статус</th>
+                        <th>Версия</th>
+                        <th>Обновление</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for device in devices %}
+                    <tr>
+                        <td>
+                            <div class="device-info-cell">
+                                <strong>{{ device.name }}</strong>
+                                {% if device.description %}
+                                <div class="device-description">
+                                    <small>{{ device.description }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <code>{{ device.ip_address }}:{{ device.port }}</code>
+                            <div class="device-credentials">
+                                <small class="text-muted">Пользователь: {{ device.username }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="device-status-badge status-{{ device.status }}">
+                                <i class="fas fa-circle"></i>
+                                {{ device.status|title }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if device.firmware_version %}
+                            <span class="version-badge">{{ device.firmware_version }}</span>
+                            {% else %}
+                            <span class="text-muted">None</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if device.needs_update %}
+                            <span class="badge badge-warning">
+                                <i class="fas fa-exclamation-triangle"></i>Не акт.
+                            </span>
+                            {% else %}
+                            <span class="badge badge-success">
+                                <i class="fas fa-check-circle"></i>Акт.
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <a href="{{ url_for('get_device_system_info', device_id=device.id) }}" 
+                                   class="btn-table btn-outline"
+                                   title="Информация о системе">
+                                    <i class="fas fa-info-circle"></i>
+                                </a>
+                                <a href="{{ url_for('test_device_connection', device_id=device.id) }}" 
+                                   class="btn-table btn-outline"
+                                   title="Тест подключения">
+                                    <i class="fas fa-network-wired"></i>
+                                </a>
+                                <a href="{{ url_for('device_backups', device_id=device.id) }}" 
+                                   class="btn-table btn-outline"
+                                   title="Резервные копии">
+                                    <i class="fas fa-archive"></i>
+                                </a>
+                                <a href="{{ url_for('check_device_update', device_id=device.id) }}" 
+                                   class="btn-table btn-warning"
+                                   title="Проверить обновления">
+                                    <i class="fas fa-sync-alt"></i>
+                                </a>
+                                {% if device.needs_update %}
+                                <a href="{{ url_for('perform_device_update', device_id=device.id) }}" 
+                                   class="btn-table btn-danger"
+                                   title="Выполнить обновление"
+                                   onclick="return confirm('⚠️ Внимание! Устройство будет перезагружено.\n\nПродолжить?')">
+                                    <i class="fas fa-download"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('edit_device', device_id=device.id) }}" 
+                                   class="btn-table btn-primary"
+                                   title="Редактировать">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button class="btn-table btn-outline-danger" 
+                                        onclick="deleteDevice({{ device.id }})"
+                                        title="Удалить">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-server fa-4x"></i>
+            </div>
+            <h5>Устройства не найдены</h5>
+            <p class="text-muted">Добавьте свое первое устройство MikroTik</p>
+            <div class="empty-actions">
+                <a href="{{ url_for('add_device') }}" class="btn-unified btn-primary">
+                   Добавить устройство
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .justify-between {
+        justify-content: space-between;
+    }
+    
+    .align-center {
+        align-items: center;
+    }
+    
+    .d-flex {
+        display: flex;
+    }
+    
+    .ml-2 {
+        margin-left: 10px;
+    }
+    
+    .stats-info {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .device-info-cell {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .device-description {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-top: 5px;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .device-credentials {
+        font-size: 0.8rem;
+        margin-top: 3px;
+    }
+    
+    .device-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .device-status-badge i {
+        font-size: 0.7rem;
+    }
+    
+    .status-online {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    .status-offline {
+        background: rgba(247, 37, 133, 0.15);
+        color: #f72585;
+    }
+    
+    .status-unknown {
+        background: rgba(173, 181, 189, 0.15);
+        color: #adb5bd;
+    }
+    
+    .version-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        background: rgba(67, 97, 238, 0.1);
+        color: var(--primary-color);
+        border-radius: var(--border-radius-sm);
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+    
+    .timestamp {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.9rem;
+    }
+    
+    .timestamp small {
+        font-size: 0.8rem;
+        color: var(--gray);
+    }
+    
+    .timestamp i {
+        margin-right: 5px;
+        color: var(--primary-color);
+    }
+    
+    .table-actions {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+    }
+    
+    .empty-icon {
+        margin-bottom: 20px;
+        color: var(--gray);
+        opacity: 0.5;
+    }
+    
+    .empty-state h5 {
+        margin-bottom: 10px;
+        color: var(--dark-gray);
+    }
+    
+    .empty-state p {
+        margin-bottom: 30px;
+        color: var(--gray);
+    }
+    
+    .empty-actions {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+    
+    /* Улучшение видимости строк таблицы */
+    .table tbody tr {
+        transition: var(--transition);
+        animation: fadeInUp 0.5s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    
+    .table tbody tr:hover {
+        background: var(--light-gray);
+    }
+    
+    /* Стили для счетчиков в заголовке */
+    .card-header .badge {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    
+    /* Анимация для карточек и элементов */
+    .card {
+        animation: scaleIn 0.6s ease forwards;
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    
+    .card-header .badge {
+        animation: fadeInUp 0.5s ease forwards;
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    
+    .card-header .badge:nth-child(1) {
+        animation-delay: 0.3s;
+    }
+    
+    .card-header .badge:nth-child(2) {
+        animation-delay: 0.4s;
+    }
+    
+    .empty-state {
+        animation: fadeIn 0.8s ease forwards;
+        opacity: 0;
+    }
+    
+    /* Анимации для строк таблицы с задержками */
+    .table tbody tr:nth-child(1) { animation-delay: 0.1s; }
+    .table tbody tr:nth-child(2) { animation-delay: 0.15s; }
+    .table tbody tr:nth-child(3) { animation-delay: 0.2s; }
+    .table tbody tr:nth-child(4) { animation-delay: 0.25s; }
+    .table tbody tr:nth-child(5) { animation-delay: 0.3s; }
+    .table tbody tr:nth-child(6) { animation-delay: 0.35s; }
+    .table tbody tr:nth-child(7) { animation-delay: 0.4s; }
+    .table tbody tr:nth-child(8) { animation-delay: 0.45s; }
+    .table tbody tr:nth-child(9) { animation-delay: 0.5s; }
+    .table tbody tr:nth-child(10) { animation-delay: 0.55s; }
+    
+    /* Ключевые кадры анимаций */
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes scaleIn {
+        from {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+    }
+    
+    /* Анимация для кнопок в заголовке */
+    .page-actions .btn-unified {
+        animation: slideInLeft 0.4s ease forwards;
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    
+    .page-actions .btn-unified:nth-child(1) { animation-delay: 0.2s; }
+    .page-actions .btn-unified:nth-child(2) { animation-delay: 0.25s; }
+    .page-actions .btn-unified:nth-child(3) { animation-delay: 0.3s; }
+    
+    @keyframes slideInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    /* Анимация для иконки заголовка страницы */
+    .page-title i {
+        animation: bounceIn 0.6s ease forwards;
+        opacity: 0;
+        transform: scale(0);
+    }
+    
+    @keyframes bounceIn {
+        0% {
+            opacity: 0;
+            transform: scale(0);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+        100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+    }
+    
+    /* Анимация для статуса онлайн */
+    .status-online i {
+        animation: pulse 2s infinite;
+    }
+    
+    /* Hover эффекты для кнопок действий */
+    .table-actions .btn-table {
+        transition: all 0.2s ease;
+        transform: translateY(0);
+    }
+    
+    .table-actions .btn-table:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Hover эффект для всей строки */
+    .table tbody tr {
+        transition: all 0.3s ease;
+    }
+    
+    .table tbody tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 1200px) {
+        .table-container {
+            overflow-x: auto;
+        }
+        
+        .table {
+            min-width: 1000px;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .page-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .page-actions .btn-unified {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        .card-header .d-flex {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .stats-info {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+        
+        .table-actions {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .table-actions .btn-table {
+            width: 100%;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .empty-state {
+            padding: 40px 15px;
+        }
+        
+        .empty-actions {
+            flex-direction: column;
+        }
+        
+        .empty-actions .btn-unified {
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteDevice(deviceId) {
+    if (confirm('❌ Удалить устройство?\n\nЭто действие нельзя отменить. Все связанные логи также будут удалены.')) {
+        fetch(`/devices/${deviceId}/delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Ошибка сети');
+        })
+        .then(data => {
+            if (data.success) {
+                showNotification('Устройство успешно удалено', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification('Ошибка: ' + (data.error || 'Неизвестная ошибка'), 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Ошибка сети: ' + error, 'error');
+        });
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `flash-message flash-${type}`;
+    notification.innerHTML = `
+        <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i>
+        ${message}
+        <button class="flash-close">&times;</button>
+    `;
+    
+    const container = document.querySelector('.flash-container');
+    if (!container) {
+        const mainContent = document.querySelector('.main-content');
+        const newContainer = document.createElement('div');
+        newContainer.className = 'flash-container';
+        mainContent.insertBefore(newContainer, mainContent.firstChild);
+        newContainer.appendChild(notification);
+    } else {
+        container.appendChild(notification);
+    }
+    
+    notification.querySelector('.flash-close').addEventListener('click', function() {
+        this.parentElement.style.opacity = '0';
+        setTimeout(() => {
+            this.parentElement.remove();
+        }, 300);
+    });
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.style.opacity = '0';
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 300);
+        }
+    }, 5000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.table-actions .btn-table').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            const ripple = document.createElement('span');
+            ripple.style.cssText = `
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.7);
+                transform: scale(0);
+                animation: ripple 0.6s linear;
+                width: ${size}px;
+                height: ${size}px;
+                top: ${y}px;
+                left: ${x}px;
+                pointer-events: none;
+                z-index: 1;
+            `;
+            
+            this.style.position = 'relative';
+            this.style.overflow = 'hidden';
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+    `;
+    document.head.appendChild(style);
+    
+    const tableRows = document.querySelectorAll('.table tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mousemove', function(e) {
+            const rect = this.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const moveX = (x - centerX) / 50;
+            const moveY = (y - centerY) / 50;
+            
+            this.style.transform = `translateX(${moveX}px) translateY(${moveY}px)`;
+        });
+        
+        row.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateX(0) translateY(0)';
+        });
+    });
+    
+    document.querySelectorAll('[title]').forEach(button => {
+        button.addEventListener('mouseenter', function() {
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.textContent = this.getAttribute('title');
+            tooltip.style.cssText = `
+                position: absolute;
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                white-space: nowrap;
+                z-index: 1000;
+                pointer-events: none;
+                transform: translateY(-100%) translateX(-50%);
+                left: 50%;
+                top: -5px;
+                opacity: 0;
+                animation: tooltipFadeIn 0.2s ease forwards;
+            `;
+            
+            this.style.position = 'relative';
+            this.appendChild(tooltip);
+        });
+        
+        button.addEventListener('mouseleave', function() {
+            const tooltip = this.querySelector('.tooltip');
+            if (tooltip) {
+                tooltip.style.animation = 'tooltipFadeOut 0.2s ease forwards';
+                setTimeout(() => tooltip.remove(), 200);
+            }
+        });
+    });
+    
+    const tooltipStyles = document.createElement('style');
+    tooltipStyles.textContent = `
+        @keyframes tooltipFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-90%) translateX(-50%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(-100%) translateX(-50%);
+            }
+        }
+        
+        @keyframes tooltipFadeOut {
+            from {
+                opacity: 1;
+                transform: translateY(-100%) translateX(-50%);
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-90%) translateX(-50%);
+            }
+        }
+    `;
+    document.head.appendChild(tooltipStyles);
+});
+</script>
+{% endblock %}

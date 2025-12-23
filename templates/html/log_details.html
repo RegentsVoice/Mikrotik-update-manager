@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Детали лога #{{ log.id }} - MikroTik Manager{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-clipboard-list"></i> Детали лога #{{ log.id }}
+{% endblock %}
+
+{% block page_actions %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('logs') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Назад
+        </a>
+        {% if current_user.role == 'admin' or current_user.is_admin %}
+        <form method="POST" 
+              action="{{ url_for('delete_log', log_id=log.id) }}" 
+              class="d-inline"
+              onsubmit="return confirm('Удалить запись лога #{{ log.id }}?')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="fas fa-trash"></i> Удалить
+            </button>
+        </form>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="stats-grid mb-4">
+    <div class="stat-card">
+        <div class="stat-icon primary">
+            <i class="fas fa-hashtag"></i>
+        </div>
+        <div class="stat-info">
+            <h3>#{{ log.id }}</h3>
+            <p>ID записи</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon info">
+            <i class="fas fa-calendar-alt"></i>
+        </div>
+        <div class="stat-info">
+            <h3>{{ log.timestamp.strftime('%d.%m.%Y') }}</h3>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {% if 'device' in log.action %}info{% elif 'update' in log.action %}warning{% elif 'task' in log.action %}primary{% elif 'user' in log.action %}success{% else %}secondary{% endif %}">
+            {% if 'device' in log.action %}
+            <i class="fas fa-server"></i>
+            {% elif 'update' in log.action %}
+            <i class="fas fa-sync-alt"></i>
+            {% elif 'task' in log.action %}
+            <i class="fas fa-tasks"></i>
+            {% elif 'user' in log.action %}
+            <i class="fas fa-user"></i>
+            {% else %}
+            <i class="fas fa-cog"></i>
+            {% endif %}
+        </div>
+        <div class="stat-info">
+            <h3 class="text-truncate" style="max-width: 150px;">{{ log.action|replace('_', ' ')|title }}</h3>
+            <p>Тип действия</p>
+        </div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-icon {% if log.result and 'success' in log.result|lower %}success{% elif log.result and 'error' in log.result|lower %}danger{% else %}secondary{% endif %}">
+            {% if log.result %}
+                {% if 'success' in log.result|lower %}
+                <i class="fas fa-check-circle"></i>
+                {% elif 'error' in log.result|lower %}
+                <i class="fas fa-times-circle"></i>
+                {% else %}
+                <i class="fas fa-info-circle"></i>
+                {% endif %}
+            {% else %}
+            <i class="fas fa-question-circle"></i>
+            {% endif %}
+        </div>
+        <div class="stat-info">
+            <h3>
+                {% if log.result %}
+                    {% if 'success' in log.result|lower %}Успех
+                    {% elif 'error' in log.result|lower %}Ошибка
+                    {% else %}Инфо{% endif %}
+                {% else %}—{% endif %}
+            </h3>
+            <p>Статус</p>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> Основная информация</h5>
+            </div>
+            <div class="card-body">
+                    
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-cogs"></i>
+                            <span>Действие:</span>
+                        </div>
+                        <div class="info-value">
+                            <span class="badge 
+                                {% if 'device' in log.action %}bg-info
+                                {% elif 'update' in log.action %}bg-warning
+                                {% elif 'task' in log.action %}bg-primary
+                                {% elif 'user' in log.action %}bg-success
+                                {% else %}bg-secondary{% endif %}">
+                                {{ log.action|replace('_', ' ')|title }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    {% if log.performed_by_user %}
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-user"></i>
+                            <span>Инициатор:</span>
+                        </div>
+                        <div class="info-value">
+                            <div class="d-flex align-items-center gap-2">
+                                <div>
+                                    <div class="fw-bold">{{ log.performed_by_user.username }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if log.device %}
+                    <div class="info-item">
+                        <div class="info-label">
+                            <i class="fas fa-server"></i>
+                            <span>Устройство:</span>
+                        </div>
+                        <div class="info-value">
+                            <div class="device-info">
+                                <a href="{{ url_for('get_device_system_info', device_id=log.device.id) }}" 
+                                   class="fw-bold text-decoration-none">
+                                    {{ log.device.name }}
+                                </a>
+                                <div class="small text-muted">
+                                    <i class="fas fa-network-wired"></i> {{ log.device.ip_address }}:{{ log.device.port }}
+                                </div>
+                                {% if log.device.firmware_version %}
+                                <div class="small text-muted">
+                                    <i class="fas fa-code-branch"></i> {{ log.device.firmware_version }}
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-align-left"></i> Детали действия</h5>
+            </div>
+            <div class="card-body">
+                {% if log.details %}
+                <div class="mb-4">
+                    <h6 class="fw-bold mb-2">Описание:</h6>
+                    <div class="alert alert-light border">
+                        <p class="mb-0">{{ log.details }}</p>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if formatted_result %}
+                <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold mb-0">Результат (JSON):</h6>
+                    </div>
+                    <div class="position-relative">
+                        <pre class="bg-light p-3 border rounded" 
+                             style="max-height: 300px; overflow: auto; font-size: 0.85rem; margin-bottom: 0;" 
+                             id="jsonOutput">{{ formatted_result }}</pre>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">Нет дополнительных данных</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <a href="{{ url_for('logs') }}" class="btn-unified btn-success">
+        <i class="fas fa-arrow-left"></i> Вернуться к списку логов
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.stat-icon.primary {
+    background: linear-gradient(135deg, #4361ee, #3a56d4);
+    color: white;
+}
+
+.stat-icon.info {
+    background: linear-gradient(135deg, #17a2b8, #138496);
+    color: white;
+}
+
+.stat-icon.warning {
+    background: linear-gradient(135deg, #ffc107, #e0a800);
+    color: #212529;
+}
+
+.stat-icon.success {
+    background: linear-gradient(135deg, #28a745, #218838);
+    color: white;
+}
+
+.stat-icon.danger {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+}
+
+.stat-icon.secondary {
+    background: linear-gradient(135deg, #6c757d, #5a6268);
+    color: white;
+}
+
+.stat-info h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: #212529;
+}
+
+.stat-info p {
+    margin: 0;
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.info-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.info-label i {
+    width: 16px;
+    color: #6c757d;
+}
+
+.info-value {
+    flex: 1;
+    color: #212529;
+}
+
+.avatar-circle-xs {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4361ee, #3a56d4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.device-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.device-info a {
+    color: #212529;
+    transition: color 0.2s;
+}
+
+.device-info a:hover {
+    color: #4361ee;
+    text-decoration: none;
+}
+
+pre {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        font-size: 20px;
+    }
+    
+    .stat-info h3 {
+        font-size: 1.3rem;
+    }
+    
+    .info-item {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .info-label {
+        min-width: auto;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard() {
+    const jsonText = document.getElementById('jsonOutput').textContent;
+    
+    navigator.clipboard.writeText(jsonText).then(() => {
+        const btn = event.target;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Скопировано';
+        btn.classList.remove('btn-outline-primary');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-outline-primary');
+        }, 2000);
+    }).catch(err => {
+        console.error('Ошибка копирования:', err);
+        alert('Не удалось скопировать текст');
+    });
+}
+</script>
+{% endblock %}

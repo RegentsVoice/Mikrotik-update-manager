@@ -1,0 +1,568 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение массового обновления - MikroTik Manager{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-rocket"></i> Подтверждение массового обновления
+{% endblock %}
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('batch_update') }}" class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к выбору
+        </a>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="batch-confirm-container">
+    <div class="warning-card mb-4">
+        <div class="warning-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h5>Важное предупреждение!</h5>
+        </div>
+        <div class="warning-body">
+            <p>Вы собираетесь выполнить массовое обновление <strong>{{ devices|length }} устройств</strong>.</p>
+            <p>Эта операция приведет к <strong>перезагрузке устройств</strong>. Убедитесь, что:</p>
+            <ul>
+                <li>Работа не будет прервана</li>
+                <li>У вас есть доступ ко всем устройствам</li>
+                <li>У вас есть резервные копии конфигураций</li>
+                <li>Выполнение происходит в период минимальной нагрузки</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="card-title">
+                <i class="fas fa-cogs"></i> Настройки обновления
+            </h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('batch_update') }}" id="confirmForm">
+                {% for device_id in device_ids %}
+                <input type="hidden" name="device_ids" value="{{ device_id }}">
+                {% endfor %}
+                <input type="hidden" name="confirmed" value="true">
+                
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-save"></i> Резервное копирование
+                    </h6>
+                    
+                    <div class="backup-option">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="create_backup" 
+                                   name="create_backup" value="true" checked>
+                            <label class="form-check-label" for="create_backup">
+                                <strong>Создать резервные копии перед обновлением</strong>
+                            </label>
+                        </div>
+                        <div class="backup-info">
+                            <i class="fas fa-info-circle"></i>
+                            Рекомендуется создать резервные копии конфигураций всех устройств
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-server"></i> Устройства для обновления
+                    </h6>
+                    
+                    <div class="devices-summary">
+                        <div class="summary-header">
+                            <span class="count">{{ devices|length }} устройств</span>
+                            <span class="online-count">
+                                <i class="fas fa-circle online"></i>
+                                {% set online_count = devices|selectattr('status', 'equalto', 'online')|list|length %}
+                                {{ online_count }} онлайн
+                            </span>
+                            <span class="offline-count">
+                                <i class="fas fa-circle offline"></i>
+                                {% set offline_count = devices|rejectattr('status', 'equalto', 'online')|list|length %}
+                                {{ offline_count }} офлайн/неизвестно
+                            </span>
+                        </div>
+                        
+                        <div class="devices-list">
+                            {% for device in devices %}
+                            <div class="device-item">
+                                <div class="device-check">
+                                    <i class="fas fa-server"></i>
+                                </div>
+                                <div class="device-info">
+                                    <div class="device-name">{{ device.name }}</div>
+                                    <div class="device-details">
+                                        <span class="device-ip">{{ device.ip_address }}:{{ device.port }}</span>
+                                        <span class="device-status {{ device.status }}">
+                                            <i class="fas fa-circle"></i>
+                                            {{ 'Онлайн' if device.status == 'online' else 'Офлайн' if device.status == 'offline' else 'Неизвестно' }}
+                                        </span>
+                                        {% if device.firmware_version %}
+                                        <span class="device-version">
+                                            <i class="fas fa-code-branch"></i>
+                                            {{ device.firmware_version }}
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h6 class="section-title">
+                        <i class="fas fa-shield-alt"></i> Подтверждение операции
+                    </h6>
+                    
+                    <div class="confirmation-box">
+                        <div class="confirmation-check">
+                            <input type="checkbox" class="form-check-input" id="confirm_operation" required>
+                            <label class="form-check-label" for="confirm_operation">
+                                Я понимаю, что эта операция приведет к перезагрузке устройств и может временно прервать их работу
+                            </label>
+                        </div>
+                        
+                        <div class="confirmation-check">
+                            <input type="checkbox" class="form-check-input" id="confirm_responsibility" required>
+                            <label class="form-check-label" for="confirm_responsibility">
+                                Я несу ответственность за возможные последствия этой операции
+                            </label>
+                        </div>
+                        
+                        <div class="confirmation-note">
+                            <i class="fas fa-clock"></i>
+                            <span>Ожидаемое время выполнения: <strong>{{ (devices|length * 2)|int }} минут</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-unified btn-primary" id="submitBtn">
+                        <i class="fas fa-rocket"></i> Начать обновление
+                    </button>
+                    <a href="{{ url_for('batch_update') }}" class="btn-unified btn-outline">
+                        <i class="fas fa-times"></i> Отмена
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.batch-confirm-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+/* Предупреждение */
+.warning-card {
+    background: linear-gradient(135deg, rgba(248, 150, 30, 0.1), rgba(248, 150, 30, 0.05));
+    border: 1px solid rgba(248, 150, 30, 0.2);
+    border-radius: var(--border-radius);
+    padding: 25px;
+}
+
+.warning-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    color: #f8961e;
+}
+
+.warning-header i {
+    font-size: 1.5rem;
+}
+
+.warning-header h5 {
+    margin: 0;
+    font-size: 1.2rem;
+}
+
+.warning-body {
+    line-height: 1.6;
+}
+
+.warning-body p {
+    margin-bottom: 10px;
+}
+
+.warning-body ul {
+    margin: 15px 0 0 20px;
+    padding: 0;
+}
+
+.warning-body li {
+    margin-bottom: 5px;
+}
+
+/* Форма */
+.form-section {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 25px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--light-gray);
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* Резервное копирование */
+.backup-option {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.form-check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.form-check-input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+}
+
+.form-check-label {
+    cursor: pointer;
+    font-weight: 500;
+    color: var(--dark-gray);
+    line-height: 1.4;
+}
+
+.backup-info {
+    background: rgba(76, 201, 240, 0.1);
+    border: 1px solid rgba(76, 201, 240, 0.2);
+    border-radius: var(--border-radius-sm);
+    padding: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: var(--dark-gray);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.backup-info i {
+    color: #4cc9f0;
+    margin-top: 2px;
+}
+
+/* Сводка устройств */
+.devices-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.count {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: var(--dark-color);
+}
+
+.online-count, .offline-count {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+    color: var(--gray);
+}
+
+.online-count i.online {
+    color: #4cc9f0;
+}
+
+.offline-count i.offline {
+    color: #adb5bd;
+}
+
+.devices-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 10px;
+}
+
+.device-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: var(--light-gray);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    transition: var(--transition);
+}
+
+.device-item:hover {
+    background: #e2e6ea;
+}
+
+.device-check {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.device-info {
+    flex: 1;
+}
+
+.device-name {
+    font-weight: 600;
+    color: var(--dark-color);
+    margin-bottom: 5px;
+    font-size: 1rem;
+}
+
+.device-details {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 0.85rem;
+}
+
+.device-ip {
+    color: var(--gray);
+}
+
+.device-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.device-status i {
+    font-size: 0.6rem;
+}
+
+.device-status.online {
+    background: rgba(76, 201, 240, 0.15);
+    color: #4cc9f0;
+}
+
+.device-status.offline {
+    background: rgba(173, 181, 189, 0.15);
+    color: #adb5bd;
+}
+
+.device-status.unknown {
+    background: rgba(173, 181, 189, 0.15);
+    color: #adb5bd;
+}
+
+.device-version {
+    color: var(--gray);
+}
+
+.device-version i {
+    margin-right: 3px;
+}
+
+/* Подтверждение */
+.confirmation-box {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.confirmation-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.confirmation-check .form-check-label {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--dark-color);
+}
+
+.confirmation-note {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(67, 97, 238, 0.05));
+    border: 1px solid rgba(67, 97, 238, 0.2);
+    border-radius: var(--border-radius-sm);
+    color: var(--primary-color);
+    font-size: 0.9rem;
+}
+
+.confirmation-note i {
+    font-size: 1rem;
+}
+
+.confirmation-note strong {
+    font-weight: 600;
+}
+
+/* Кнопки действий */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+}
+
+.form-actions .btn-unified {
+    min-width: 180px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .form-section {
+        padding: 20px 15px;
+    }
+    
+    .summary-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .device-details {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions .btn-unified {
+        width: 100%;
+    }
+    
+    .warning-card {
+        padding: 20px 15px;
+    }
+}
+
+@media (max-width: 576px) {
+    .section-title {
+        font-size: 1rem;
+    }
+    
+    .device-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .device-check {
+        align-self: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('confirmForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const confirmCheckbox1 = document.getElementById('confirm_operation');
+    const confirmCheckbox2 = document.getElementById('confirm_responsibility');
+    
+    form.addEventListener('submit', function(e) {
+        if (!confirmCheckbox1.checked || !confirmCheckbox2.checked) {
+            e.preventDefault();
+            showNotification('Необходимо подтвердить все пункты для продолжения', 'error');
+            return false;
+        }
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Подготовка...';
+        submitBtn.disabled = true;
+        
+        setTimeout(() => {
+            submitBtn.innerHTML = '<i class="fas fa-rocket"></i> Начать обновление';
+            submitBtn.disabled = false;
+        }, 10000);
+    });
+    
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `flash-message flash-${type}`;
+        notification.innerHTML = `
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : type === 'warning' ? 'fa-exclamation-triangle' : 'fa-info-circle'}"></i>
+            ${message}
+            <button class="flash-close">&times;</button>
+        `;
+        
+        const container = document.querySelector('.flash-container');
+        if (!container) {
+            const newContainer = document.createElement('div');
+            newContainer.className = 'flash-container';
+            document.querySelector('.main-content').insertBefore(newContainer, document.querySelector('.page-content'));
+        }
+        
+        document.querySelector('.flash-container').appendChild(notification);
+        
+        notification.querySelector('.flash-close').addEventListener('click', function() {
+            notification.style.opacity = '0';
+            setTimeout(() => notification.remove(), 300);
+        });
+        
+        if (type !== 'error') {
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.style.opacity = '0';
+                    setTimeout(() => notification.remove(), 300);
+                }
+            }, 5000);
+        }
+    }
+});
+</script>
+{% endblock %}

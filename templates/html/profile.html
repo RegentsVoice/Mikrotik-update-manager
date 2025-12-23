@@ -1,0 +1,949 @@
+{% extends "base.html" %}
+
+{% block title %}Мой профиль - MikroTik Manager{% endblock %}
+
+
+{% block page_actions %}
+    <div class="page-actions">
+        <button type="submit" form="profileForm" class="btn-unified btn-primary">
+            <i class="fas fa-save"></i> Сохранить изменения
+        </button>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="profile-container">
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="d-flex align-center justify-between">
+                        <h5 class="card-title">
+                            <i class="fas fa-id-card"></i> Основная информация
+                        </h5>
+                        <span class="status-badge {{ 'badge-success' if current_user.is_active else 'badge-danger' }}">
+                            {{ 'Активен' if current_user.is_active else 'Неактивен' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="profile-avatar text-center mb-4">
+                        <div class="avatar-circle">
+                            <span class="avatar-initial">{{ current_user.username[0]|upper }}</span>
+                        </div>
+                        <h3 class="profile-name mt-3">{{ current_user.full_name or current_user.username }}</h3>
+                        <div class="profile-username">
+                            @{{ current_user.username }}
+                        </div>
+                        <div class="profile-role mt-2">
+                            <span class="role-badge {{ 'badge-danger' if current_user.role == 'admin' else 'badge-primary' }}">
+                                {{ 'Администратор' if current_user.role == 'admin' else 'Менеджер' }}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-details">
+                        <div class="detail-item">
+                            <div class="detail-label">
+                                <i class="fas fa-envelope"></i> Email
+                            </div>
+                            <div class="detail-value">{{ current_user.email or 'Не указан' }}</div>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <div class="detail-label">
+                                <i class="fas fa-phone"></i> Телефон
+                            </div>
+                            <div class="detail-value">{{ current_user.phone or 'Не указан' }}</div>
+                        </div>
+                        
+                        <div class="detail-item">
+                            <div class="detail-label">
+                                <i class="fas fa-calendar-alt"></i> Дата регистрации
+                            </div>
+                            <div class="detail-value">{{ current_user.created_at.strftime('%d.%m.%Y') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-bar"></i> Моя активность
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-info">
+                                <h3>{{ created_devices_count }}</h3>
+                                <p>Устройств</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-info">
+                                <h3>{{ created_tasks_count }}</h3>
+                                <p>Задач</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-info">
+                                <h3>{{ log_count }}</h3>
+                                <p>Действий</p>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <div class="stat-info">
+                                <h3>{{ user_days }}</h3>
+                                <p>Дней в системе</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-edit"></i> Редактировать профиль
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('update_profile') }}" id="profileForm" class="profile-form">
+                        <div class="form-section">
+                            <h6 class="section-title">
+                                <i class="fas fa-user"></i> Личные данные
+                            </h6>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="full_name" class="form-label">
+                                        <i class="fas fa-user-tag"></i> Полное имя
+                                    </label>
+                                    <input type="text" class="form-control" id="full_name" name="full_name" 
+                                           value="{{ current_user.full_name or '' }}"
+                                           placeholder="Иван Иванов">
+                                    <div class="form-hint">Ваше полное имя</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="username" class="form-label disabled">
+                                        <i class="fas fa-at"></i> Имя пользователя
+                                    </label>
+                                    <input type="text" class="form-control readonly" id="username" 
+                                           value="{{ current_user.username }}" readonly>
+                                    <div class="form-hint">Имя пользователя нельзя изменить</div>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="email" class="form-label">
+                                        <i class="fas fa-envelope"></i> Email адрес
+                                    </label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           value="{{ current_user.email or '' }}"
+                                           placeholder="example@domain.com">
+                                    <div class="form-hint">Контактный email</div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="phone" class="form-label">
+                                        <i class="fas fa-phone"></i> Телефон
+                                    </label>
+                                    <input type="tel" class="form-control" id="phone" name="phone" 
+                                           value="{{ current_user.phone or '' }}"
+                                           placeholder="+7 (999) 999-99-99">
+                                    <div class="form-hint">Контактный телефон</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h6 class="section-title">
+                                <i class="fas fa-key"></i> Изменение пароля
+                            </h6>
+                            
+                            <div class="password-note">
+                                <i class="fas fa-info-circle"></i>
+                                Заполните эти поля только если хотите изменить пароль
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="current_password" class="form-label">
+                                        <i class="fas fa-lock"></i> Текущий пароль
+                                    </label>
+                                    <div class="password-input">
+                                        <input type="password" class="form-control" id="current_password" 
+                                               name="current_password" placeholder="Введите текущий пароль">
+                                        <button type="button" class="password-toggle" data-target="current_password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="new_password" class="form-label">
+                                        <i class="fas fa-lock"></i> Новый пароль
+                                    </label>
+                                    <div class="password-input">
+                                        <input type="password" class="form-control" id="new_password" 
+                                               name="new_password" placeholder="Введите новый пароль">
+                                        <button type="button" class="password-toggle" data-target="new_password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="confirm_password" class="form-label">
+                                        <i class="fas fa-lock"></i> Подтверждение
+                                    </label>
+                                    <div class="password-input">
+                                        <input type="password" class="form-control" id="confirm_password" 
+                                               name="confirm_password" placeholder="Повторите новый пароль">
+                                        <button type="button" class="password-toggle" data-target="confirm_password">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="strength-meter">
+                                    <div class="strength-bar"></div>
+                                </div>
+                                <div class="strength-text">Надежность пароля: <span>—</span></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-section">
+                            <h6 class="section-title">
+                                <i class="fas fa-history"></i> Последние действия
+                            </h6>
+                            
+                            {% if user_logs %}
+                            <div class="recent-actions">
+                                {% for log in user_logs %}
+                                <div class="action-item">
+                                    <div class="action-icon">
+                                        <i class="fas 
+                                            {% if 'device' in log.action %}fa-server
+                                            {% elif 'task' in log.action %}fa-tasks
+                                            {% elif 'user' in log.action %}fa-user
+                                            {% elif 'update' in log.action %}fa-sync-alt
+                                            {% else %}fa-cog{% endif %}">
+                                        </i>
+                                    </div>
+                                    <div class="action-content">
+                                        <div class="action-title">
+                                            {{ log.action|replace('_', ' ')|title }}
+                                        </div>
+                                        <div class="action-details">
+                                            {% if log.device %}
+                                            <span class="device-info">
+                                                <i class="fas fa-server"></i>
+                                                {{ log.device.name }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="text-center mt-3">
+                                <a href="{{ url_for('logs') }}" class="btn-unified btn-outline">
+                                    <i class="fas fa-history"></i> Все действия
+                                </a>
+                            </div>
+                            {% else %}
+                            <div class="empty-actions">
+                                <i class="fas fa-history fa-2x"></i>
+                                <p>Нет действий за последнее время</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .profile-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin: 0 -10px;
+    }
+    
+    .col-lg-4, .col-lg-8 {
+        padding: 0 10px;
+        flex: 1 0 0;
+    }
+    
+    .col-lg-4 {
+        flex: 0 0 calc(33.3333% - 20px);
+        max-width: calc(33.3333% - 20px);
+    }
+    
+    .col-lg-8 {
+        flex: 0 0 calc(66.6667% - 20px);
+        max-width: calc(66.6667% - 20px);
+    }
+    
+    /* Аватар профиля */
+    .profile-avatar {
+        padding: 20px 0;
+    }
+    
+    .avatar-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto;
+        color: white;
+        font-size: 48px;
+        font-weight: bold;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    }
+    
+    .avatar-initial {
+        text-transform: uppercase;
+    }
+    
+    .profile-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--dark-color);
+        margin-bottom: 5px;
+    }
+    
+    .profile-username {
+        font-size: 1rem;
+        color: var(--gray);
+        margin-bottom: 10px;
+    }
+    
+    .profile-role {
+        margin-top: 10px;
+    }
+    
+    /* Детали профиля */
+    .profile-details {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        margin-top: 20px;
+    }
+    
+    .detail-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 500;
+        color: var(--dark-gray);
+        flex: 1;
+    }
+    
+    .detail-label i {
+        width: 20px;
+        color: var(--primary-color);
+    }
+    
+    .detail-value {
+        font-weight: 600;
+        color: var(--dark-color);
+        text-align: right;
+        flex: 1;
+    }
+    
+    /* Статистика */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+    
+    .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: var(--light-gray);
+        border-radius: var(--border-radius);
+        transition: var(--transition);
+    }
+    
+    .stat-item:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        color: white;
+    }
+    
+    .stat-icon.devices {
+        background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    }
+    
+    .stat-icon.tasks {
+        background: linear-gradient(135deg, var(--secondary-color), #560bad);
+    }
+    
+    .stat-icon.logs {
+        background: linear-gradient(135deg, var(--success-color), #4895ef);
+    }
+    
+    .stat-icon.days {
+        background: linear-gradient(135deg, var(--warning-color), #f3722c);
+    }
+    
+    .stat-info h3 {
+        margin: 0;
+        font-size: 1.5rem;
+        color: var(--dark-color);
+    }
+    
+    .stat-info p {
+        margin: 0;
+        color: var(--gray);
+        font-size: 0.9rem;
+    }
+    
+    /* Форма профиля */
+    .profile-form {
+        display: flex;
+        flex-direction: column;
+        gap: 25px;
+    }
+    
+    .form-section {
+        background: white;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 25px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--light-gray);
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .form-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--dark-gray);
+        margin-bottom: 5px;
+    }
+    
+    .form-label i {
+        color: var(--primary-color);
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px 15px;
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius-sm);
+        font-family: var(--font-family);
+        font-size: 14px;
+        transition: var(--transition);
+        background: white;
+    }
+    
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+    }
+    
+    .form-control.readonly {
+        background: var(--light-gray);
+        color: var(--gray);
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+    
+    .form-hint {
+        font-size: 0.85rem;
+        color: var(--gray);
+        margin-top: 5px;
+        line-height: 1.4;
+    }
+    
+    /* Пароль */
+    .password-note {
+        background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(67, 97, 238, 0.05));
+        border: 1px solid rgba(67, 97, 238, 0.2);
+        border-radius: var(--border-radius-sm);
+        padding: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        color: var(--primary-color);
+        font-size: 0.9rem;
+    }
+    
+    .password-input {
+        position: relative;
+    }
+    
+    .password-input .form-control {
+        padding-right: 50px;
+    }
+    
+    .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        color: var(--gray);
+        cursor: pointer;
+        padding: 5px;
+        transition: var(--transition);
+    }
+    
+    .password-toggle:hover {
+        color: var(--primary-color);
+    }
+    
+    .password-strength {
+        margin-top: 20px;
+    }
+    
+    .strength-meter {
+        height: 8px;
+        background: var(--light-gray);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+    
+    .strength-bar {
+        height: 100%;
+        width: 0%;
+        background: var(--danger-color);
+        border-radius: 4px;
+        transition: width 0.3s ease, background 0.3s ease;
+    }
+    
+    .strength-text {
+        font-size: 0.85rem;
+        color: var(--gray);
+    }
+    
+    .strength-text span {
+        font-weight: 600;
+    }
+    
+    /* Недавние действия */
+    .recent-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+        padding-right: 10px;
+    }
+    
+    .action-item {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 15px;
+        background: var(--light-gray);
+        border-radius: var(--border-radius-sm);
+        transition: var(--transition);
+    }
+    
+    .action-item:hover {
+        background: #e2e6ea;
+    }
+    
+    .action-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--primary-color);
+        font-size: 1rem;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+    
+    .action-content {
+        flex: 1;
+    }
+    
+    .action-title {
+        font-weight: 500;
+        color: var(--dark-color);
+        margin-bottom: 5px;
+    }
+    
+    .action-details {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .device-info {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.85rem;
+        color: var(--gray);
+    }
+    
+    .action-time {
+        font-size: 0.85rem;
+        color: var(--gray);
+    }
+    
+    .empty-actions {
+        text-align: center;
+        padding: 40px 20px;
+        color: var(--gray);
+    }
+    
+    .empty-actions i {
+        margin-bottom: 15px;
+        opacity: 0.5;
+    }
+    
+    .empty-actions p {
+        margin: 0;
+    }
+    
+    /* Бейджи */
+    .status-badge,
+    .role-badge {
+        display: inline-block;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .badge-success {
+        background: rgba(76, 201, 240, 0.15);
+        color: #4cc9f0;
+    }
+    
+    .badge-danger {
+        background: rgba(247, 37, 133, 0.15);
+        color: #f72585;
+    }
+    
+    .badge-primary {
+        background: rgba(67, 97, 238, 0.15);
+        color: #4361ee;
+    }
+    
+    /* Адаптивность */
+    @media (max-width: 992px) {
+        .row {
+            flex-direction: column;
+        }
+        
+        .col-lg-4,
+        .col-lg-8 {
+            flex: 0 0 100%;
+            max-width: 100%;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr);
+        }
+        
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .page-actions {
+            flex-direction: column;
+        }
+        
+        .page-actions .btn-unified {
+            width: 100%;
+        }
+        
+        .form-section {
+            padding: 20px 15px;
+        }
+        
+        .avatar-circle {
+            width: 100px;
+            height: 100px;
+            font-size: 36px;
+        }
+        
+        .profile-name {
+            font-size: 1.25rem;
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .form-section {
+            padding: 15px;
+        }
+        
+        .action-item {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .action-details {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 5px;
+        }
+        
+        .avatar-circle {
+            width: 80px;
+            height: 80px;
+            font-size: 28px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.password-toggle').forEach(button => {
+        button.addEventListener('click', function() {
+            const targetId = this.getAttribute('data-target');
+            const passwordInput = document.getElementById(targetId);
+            const icon = this.querySelector('i');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    });
+    
+    const newPasswordInput = document.getElementById('new_password');
+    const strengthBar = document.querySelector('.strength-bar');
+    const strengthText = document.querySelector('.strength-text span');
+    
+    if (newPasswordInput && strengthBar && strengthText) {
+        newPasswordInput.addEventListener('input', function() {
+            const password = this.value;
+            let strength = 0;
+            let text = '—';
+            let color = '#f72585'; // Красный
+            
+            if (password.length >= 8) strength += 25;
+            if (/[A-Z]/.test(password)) strength += 25;
+            if (/[0-9]/.test(password)) strength += 25;
+            if (/[^A-Za-z0-9]/.test(password)) strength += 25;
+            
+            strength = Math.min(strength, 100);
+            
+            if (strength >= 75) {
+                text = 'Отличный';
+                color = '#4cc9f0'; // Синий
+            } else if (strength >= 50) {
+                text = 'Хороший';
+                color = '#f8961e'; // Оранжевый
+            } else if (strength >= 25) {
+                text = 'Слабый';
+                color = '#f72585'; // Розовый
+            } else if (password.length > 0) {
+                text = 'Очень слабый';
+                color = '#f72585'; // Розовый
+            }
+            
+            strengthBar.style.width = `${strength}%`;
+            strengthBar.style.backgroundColor = color;
+            strengthText.textContent = text;
+            strengthText.style.color = color;
+        });
+    }
+    
+    const confirmPasswordInput = document.getElementById('confirm_password');
+    
+    if (newPasswordInput && confirmPasswordInput) {
+        function checkPasswords() {
+            const newPassword = newPasswordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (newPassword && confirmPassword) {
+                if (newPassword === confirmPassword) {
+                    confirmPasswordInput.style.borderColor = '#4cc9f0';
+                    confirmPasswordInput.style.boxShadow = '0 0 0 3px rgba(76, 201, 240, 0.1)';
+                } else {
+                    confirmPasswordInput.style.borderColor = '#f72585';
+                    confirmPasswordInput.style.boxShadow = '0 0 0 3px rgba(247, 37, 133, 0.1)';
+                }
+            } else {
+                confirmPasswordInput.style.borderColor = '';
+                confirmPasswordInput.style.boxShadow = '';
+            }
+        }
+        
+        newPasswordInput.addEventListener('input', checkPasswords);
+        confirmPasswordInput.addEventListener('input', checkPasswords);
+    }
+    
+    const form = document.getElementById('profileForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const newPassword = newPasswordInput ? newPasswordInput.value : '';
+            const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
+            const currentPassword = document.getElementById('current_password') ? 
+                                   document.getElementById('current_password').value : '';
+            
+            if (newPassword) {
+                if (!currentPassword) {
+                    e.preventDefault();
+                    alert('Для смены пароля необходимо ввести текущий пароль');
+                    document.getElementById('current_password').focus();
+                    return false;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    e.preventDefault();
+                    alert('Новые пароли не совпадают');
+                    confirmPasswordInput.focus();
+                    return false;
+                }
+                
+                if (newPassword.length < 8) {
+                    e.preventDefault();
+                    alert('Пароль должен содержать минимум 8 символов');
+                    newPasswordInput.focus();
+                    return false;
+                }
+            }
+        });
+    }
+    
+    const avatar = document.querySelector('.avatar-circle');
+    if (avatar) {
+        avatar.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.05) rotate(5deg)';
+            this.style.transition = 'all 0.3s ease';
+        });
+        
+        avatar.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        });
+    }
+    
+    const statItems = document.querySelectorAll('.stat-item');
+    statItems.forEach((item, index) => {
+        item.style.animationDelay = `${index * 0.1}s`;
+        item.classList.add('fade-in-up');
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in-up {
+            animation: fadeInUp 0.5s ease forwards;
+            opacity: 0;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

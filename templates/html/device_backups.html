@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+
+{% block title %}Резервные копии - {{ device.name }} - MikroTik Manager{% endblock %}
+
+{% block page_actions %}
+    <div class="page-actions">
+        <a href="{{ url_for('get_device_system_info', device_id=device.id) }}" class="btn-unified btn-outline">
+            <i class="fas fa-arrow-left"></i> Назад к информации
+        </a>
+        <form method="POST" action="{{ url_for('create_device_backup', device_id=device.id) }}" class="d-inline">
+            <button type="submit" class="btn-unified btn-success">
+                <i class="fas fa-plus-circle"></i> Создать новый бэкап
+            </button>
+        </form>
+    </div>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-between align-center">
+            <h5 class="card-title">
+                <i class="fas fa-archive"></i>
+                Резервные копии устройства: {{ device.name }}
+            </h5>
+        </div>
+    </div>
+    
+    <div class="card-body">
+        <div class="stats-grid mb-4">
+            <div class="stat-card">
+                <div class="stat-icon devices">
+                    <i class="fas fa-database"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ backup_count }}</h3>
+                    <p>Всего бэкапов</p>
+                </div>
+            </div>
+            
+            <div class="stat-card">
+                <div class="stat-icon online">
+                    <i class="fas fa-hdd"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>
+                        {% set total_size = backups|sum(attribute='size') %}
+                        {% if total_size >= 1024*1024*1024 %}
+                            {{ "%.1f"|format(total_size/(1024*1024*1024)) }}
+                        {% elif total_size >= 1024*1024 %}
+                            {{ "%.1f"|format(total_size/(1024*1024)) }}
+                        {% elif total_size >= 1024 %}
+                            {{ "%.1f"|format(total_size/1024) }}
+                        {% else %}
+                            {{ total_size }}
+                        {% endif %}
+                    </h3>
+                    <p>
+                        {% if total_size >= 1024*1024*1024 %}
+                            GB
+                        {% elif total_size >= 1024*1024 %}
+                            MB
+                        {% elif total_size >= 1024 %}
+                            KB
+                        {% else %}
+                            байт
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            {% if backups %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Имя файла</th>
+                        <th>Размер</th>
+                        <th>Дата создания</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for backup in backups %}
+                    <tr>
+                        <td>
+                            <div class="device-info-cell">
+                                <strong>{{ backup.name }}</strong>
+                            </div>
+                        </td>
+                        <td>
+                            {% if backup.size_formatted %}
+                                <span class="badge badge-info">{{ backup.size_formatted }}</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if backup.creation_time and backup.creation_time != 'unknown' %}
+                                <small>{{ backup.creation_time }}</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="table-actions">
+                                <form method="POST"
+                                      action="{{ url_for('delete_device_backup',
+                                                         device_id=device.id,
+                                                         backup_name=backup.name) }}"
+                                      class="d-inline"
+                                      onsubmit="return confirm('Удалить бэкап {{ backup.name }}?')">
+                                    <button type="submit"
+                                            class="btn-table btn-outline-danger"
+                                            title="Удалить">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-database fa-4x"></i>
+                </div>
+                <h5>Бэкапы не найдены</h5>
+                <p class="text-muted">На устройстве нет резервных копий конфигурации</p>
+                <div class="empty-actions">
+                    <form method="POST" action="{{ url_for('create_device_backup', device_id=device.id) }}" class="d-inline">
+                        <button type="submit" class="btn-unified btn-primary">
+                            <i class="fas fa-plus-circle"></i> Создать первый бэкап
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="mt-4 p-3 bg-light rounded">
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i> Резервные копии хранятся на самом устройстве MikroTik.
+                Для восстановления используйте команду в терминале: 
+                <code>/system backup load name="имя_файла.backup"</code>
+            </small>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Дополнительные стили для страницы бэкапов */
+.bg-light {
+    background-color: var(--light-gray) !important;
+}
+
+.table-container {
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border-color);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.table th {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
+    padding: 15px;
+    text-align: left;
+    font-weight: 500;
+}
+
+.table td {
+    padding: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table tr:last-child td {
+    border-bottom: none;
+}
+
+.table tr:hover {
+    background: var(--light-gray);
+}
+
+.code-block {
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+    font-size: 0.9em;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.empty-icon {
+    margin-bottom: 20px;
+    color: var(--gray);
+    opacity: 0.5;
+}
+
+.empty-state h5 {
+    margin-bottom: 10px;
+    color: var(--dark-gray);
+}
+
+.empty-state p {
+    margin-bottom: 30px;
+    color: var(--gray);
+}
+
+.empty-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form[onsubmit]').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const backupName = this.querySelector('button[title="Удалить"]').closest('form').action.split('/').pop();
+            if (!confirm(`Удалить бэкап ${backupName}?\n\nЭто действие нельзя отменить.`)) {
+                e.preventDefault();
+            }
+        });
+    });
+    
+    const sizeElements = document.querySelectorAll('.stat-info h3');
+    if (sizeElements.length > 1) {
+        const sizeValue = sizeElements[1].textContent.trim();
+        const sizeLabel = sizeElements[1].nextElementSibling.textContent.trim();
+        
+        let formattedSize = sizeValue;
+        let unit = sizeLabel;
+        
+        if (unit === 'GB') {
+            formattedSize = parseFloat(sizeValue).toFixed(1) + ' GB';
+        } else if (unit === 'MB') {
+            formattedSize = parseFloat(sizeValue).toFixed(1) + ' MB';
+        } else if (unit === 'KB') {
+            formattedSize = parseFloat(sizeValue).toFixed(1) + ' KB';
+        }
+        
+        sizeElements[1].textContent = formattedSize;
+        sizeElements[1].nextElementSibling.textContent = 'Общий размер';
+    }
+});
+</script>
+{% endblock %}
