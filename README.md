@@ -102,11 +102,11 @@ python ./app.py
 ## Структура проэкта
 ```bash
 mikrotik-manager\
-├── 📁 instance\        Конфигурация и БД
+├── 📁 instance\        
 │   ├── .env            Переменные окружения
 │   └── app.db          SQLite база данных
-├── 📁 templates\       HTML шаблоны
-│   ├── html\           Основные страницы
+├── 📁 templates\       
+│   ├── html\           HTML шаблоны
 │   └── css\            CSS 
 ├── app.py              Точка входа приложения
 ├── routes.py           Маршруты Flask
