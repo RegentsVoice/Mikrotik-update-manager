@@ -143,7 +143,7 @@ DATABASE_URL={db_url}
 
 ## Лицензия
 
-[**MIT License**](https://github.com/RegentsVoice/MikrotikManager/blob/main/LICENSE).
+[**MIT License**](https://github.com/RegentsVoice/MikrotikManager/blob/main/LICENSE)
 
 ---
 
