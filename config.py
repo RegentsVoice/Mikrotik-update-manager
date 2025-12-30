@@ -12,21 +12,19 @@ warnings.filterwarnings('ignore', message='TripleDES has been moved')
 def ensure_database_file(db_url):
     """Создает файл базы данных если его не существует"""
     if not db_url.startswith('sqlite:///'):
-        return db_url  # Не SQLite база
+        return db_url
     
     if db_url == 'sqlite:///:memory:':
-        return db_url  # In-memory база
+        return db_url
     
     # Извлекаем путь к файлу из URL
     file_path = db_url.replace('sqlite:///', '')
     
     # Корректировка пути для Windows
     if sys.platform.startswith('win'):
-        # Убираем ведущий слеш если он есть: /C:/path → C:/path
         if file_path.startswith('/') and len(file_path) > 2 and file_path[2] == ':':
             file_path = file_path[1:]
     else:
-        # Для Unix: если путь не абсолютный, делаем его относительно текущей директории
         if not file_path.startswith('/'):
             file_path = os.path.join(os.getcwd(), file_path)
     
@@ -40,14 +38,12 @@ def ensure_database_file(db_url):
     if not os.path.exists(file_path):
         try:
             with open(file_path, 'w') as f:
-                f.write('')  # Создаем пустой файл
-            # Устанавливаем права доступа для Unix-систем
+                f.write('')
             if not sys.platform.startswith('win'):
-                os.chmod(file_path, 0o666)  # Чтение и запись для всех
+                os.chmod(file_path, 0o666)
             print(f"🗃️ Создан фай БД: {file_path}")
         except Exception as e:
             print(f"⚠️Файл БД не создан: {e}")
-            # В случае ошибки используем in-memory базу
             return 'sqlite:///:memory:'
     
     return f'sqlite:///{file_path}'
@@ -155,3 +151,4 @@ DATABASE_URL={db_url}
 
 # Инициализируем конфигурацию при импорте
 config = init_config()
+
